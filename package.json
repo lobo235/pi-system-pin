@@ -1,0 +1,54 @@
+{
+  "name": "pi-system-pin",
+  "version": "0.0.0",
+  "description": "Stopgap for pi#5581: keeps a request's system block byte-identical when an extension's custom message starts a run, so a prefix-caching provider does not re-read the conversation. Uninstall once pi fixes the issue.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Justin Barlow",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lobo235/pi-system-pin.git"
+  },
+  "homepage": "https://github.com/lobo235/pi-system-pin#readme",
+  "bugs": {
+    "url": "https://github.com/lobo235/pi-system-pin/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "prompt-cache",
+    "system-prompt",
+    "coding-agent"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/test-support.ts",
+    "pi-compat.json",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "npm run typecheck && node --test \"src/**/*.test.ts\" && npm run load-smoke && npm run smoke",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "load-smoke": "node load-smoke.mjs",
+    "smoke": "node scripts/pi-smoke.ts",
+    "check-pack": "node scripts/check-pack.ts"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.0.4",
+    "@types/node": "24.19.0",
+    "typebox": "1.3.7",
+    "typescript": "5.9.3"
+  }
+}
