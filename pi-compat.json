@@ -2,11 +2,19 @@
   "$comment": "pi versions pi-system-pin has been verified against. A version on the same major.minor line as a listed one runs silently; any other warns once per session and runs. npm test fails on a vendored pi outside every listed line. To add one, follow CONTRIBUTING.md (Verifying a new pi version).",
   "verified": [
     {
+      "pi": "1.0.0",
+      "date": "2026-10-07",
+      "how": [
+        "npm test on pi 1.0.0 (with pi-ai and pi-agent-core 1.0.0) in a copy of this tree, the version-gate test skipped: typecheck, unit suite, the real-pi session tests including both control tests (pi 1.0.0 has the flaw) and pi's own compaction, the load smoke",
+        "npm run smoke: the pi 1.0.0 binary over RPC, fresh agent dir and HOME, fake model, with folded and with mid-conversation system messages; without system-pin the custom run's second turn lost the fixture's section; with system-pin packed by npm pack and installed by pi install, every leading system message stayed byte-identical, no request carried a system message dropping the section, and a system-pin.patch entry was written"
+      ]
+    },
+    {
       "pi": "1.0.4",
       "date": "2026-10-07",
       "how": [
         "npm test on the vendored pi 1.0.4: typecheck, unit suite, the real-pi session tests, including pi's own compaction with the pinned patch kept and summarized (both control tests pass: without system-pin, pi still drops an added section and reverts a rewritten one; with it, every head is byte-identical), the load smoke",
-        "npm run smoke: the pi 1.0.4 binary over RPC with only the fixture and this extension, fresh agent dir, fake model; the control run lost the section and the pinned run kept all four heads byte-identical with one system-pin.patch entry"
+        "npm run smoke: the pi 1.0.4 binary over RPC, fresh agent dir and HOME, fake model, with folded and with mid-conversation system messages; without system-pin the custom run's second turn lost the fixture's section; with system-pin packed by npm pack and installed by pi install, every leading system message stayed byte-identical, no request carried a system message dropping the section, and a system-pin.patch entry was written"
       ]
     }
   ]

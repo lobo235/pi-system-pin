@@ -29,9 +29,10 @@ Only if all three are true:
    catalog model not verified for mid-conversation system messages. It costs most where the provider caches
    prompt prefixes: every head rewrite is a full re-read of the conversation.
 
-With a model that does accept mid-conversation system messages, pi sends each change in place and the cached
-prefix survives; the run still loses the extensions' sections from its second turn on. pi-system-pin keeps them
-there too, but the cost it saves is much smaller.
+With a model that does accept mid-conversation system messages, pi sends each change as a later system message
+and the cached prefix survives; the run still loses the extensions' sections from its second turn on.
+pi-system-pin keeps them there too (the next user prompt's patch, which sets the section to the text it already
+has, still goes out as one appended system message), but the cost it saves is much smaller.
 
 You do not need it when no extension shapes the system prompt, or when nothing starts runs with custom
 messages: it then never pins anything and only reads each request. You should not keep it once pi fixes
@@ -45,11 +46,11 @@ pi install npm:pi-system-pin
 
 Requirements:
 
-- pi on a release line listed in [pi-compat.json](pi-compat.json). Another pi works too; it warns once per
-  session (see [pi versions](#pi-versions)).
+- pi 1.0.0 or newer, on a release line listed in [pi-compat.json](pi-compat.json). Another pi works too; it
+  warns once per session (see [pi versions](#pi-versions)). Every pi from 1.0.0 to 1.0.4 has the flaw.
 - Node.js 22.19 or newer (pi's own requirement).
 
-It is active as soon as it is installed and has no configuration.
+It loads with the next pi session (or `/reload`) and has no configuration.
 
 ## What pi does
 
@@ -57,7 +58,7 @@ Here is a session where one extension adds a section to the system prompt on eve
 starts a run with a custom message when a background task finishes. The model answers that notice with a
 tool call, so the custom run has two turns.
 
-| Request | Started by | System block sent (pi 1.0.4) | With pi-system-pin |
+| Request | Started by | System block sent (pi 1.0.0 to 1.0.4) | With pi-system-pin |
 |---|---|---|---|
 | 1 | user prompt | base prompt + section | base prompt + section |
 | 2 | custom message, first turn | base prompt + section | base prompt + section |
@@ -102,11 +103,12 @@ Both entry types live on the transcript, so a reopened session sends the same re
 - **It reads pi internals** that are not a stable API: the system patch shape (`sections`, `toolsAdded`,
   `toolsRemoved`), the `context_with_system` event and the run lifecycle events. Each pi release line is
   verified before it is listed (see [pi versions](#pi-versions)).
-- **Per request**, one pass over the messages and a SHA-256 hash of each system patch's sections, plus, once a
-  compaction is on the branch, one pass over the branch's entries. **Per pin or release**, one small custom
-  entry on the transcript. No network calls, no files, no model calls.
-- **A change a custom-message run makes on purpose waits** for the next user run. On pi 1.0.4 no extension can
-  make one, since custom runs never reach `before_agent_start`.
+- **Per request**, nothing while nothing is pinned. Once a patch is pinned, one pass over the messages and a
+  SHA-256 hash of each system patch's sections, plus one pass over the branch's entries once a compaction is on
+  the branch. **Per pin or release**, one small custom entry on the transcript. No network calls and no model
+  calls; the only file it reads is its own `pi-compat.json`, once at load.
+- **A change a custom-message run makes on purpose waits** for the next user run. On pi 1.0.0 to 1.0.4 no
+  extension can make one, since custom runs never reach `before_agent_start`.
 - **The first run of a session**, when a custom message starts it before any user prompt, is sent by pi 1.0.4
   with no system prompt at all. pi-system-pin keeps that run's head as it started; the head changes once, at
   the first user prompt.
@@ -119,16 +121,17 @@ Both entry types live on the transcript, so a reopened session sends the same re
 
 ## When pi fixes pi#5581
 
-pi#5581 is open, labelled `bug` and `inprogress`. Once pi runs `before_agent_start` (or an equivalent
-preparation step) for runs started by custom messages, the fallback patches stop and pi-system-pin has nothing
-left to do.
+As of 2026-10-07, pi#5581 is open, labelled `bug` and `inprogress`. Once pi runs `before_agent_start` (or an
+equivalent preparation step) for runs started by custom messages, the fallback patches stop and pi-system-pin
+has nothing left to do.
 
 **How the fix is detected.** Two tests, named `control:` in [src/session.test.ts](src/session.test.ts), run a
 real pi session **without** pi-system-pin and assert that pi still has the flaw: one checks that a custom run
 drops a section an extension added, the other that it reverts a built-in section an extension rewrote. The
-real-pi smoke (`npm run smoke`) makes the same check with the pi binary. A nightly job runs them against the
-newest pi. When a control test fails, it opens an issue saying pi has fixed the flaw, and it never records that
-pi as verified.
+real-pi smoke (`npm run smoke`) makes the same check with the pi binary, with folded and with mid-conversation
+system messages. A nightly job runs them against the newest pi. When any of these control checks fails, it
+opens an issue saying pi has fixed the flaw, and it never records that pi as verified. GitHub pauses scheduled
+workflows in a repository with no activity for 60 days; check pi#5581 yourself if the last nightly run is old.
 
 **What happens to this package then.** A final release whose `pi-compat.json` stops at the last pi line that
 has the flaw, then `npm deprecate` with a message naming the pi version that fixed it. There is no date; it
@@ -161,7 +164,8 @@ The key is the patch message's `timestamp` and the first 16 hex digits of the SH
 
 ## Configuration
 
-None: no settings, no environment variables, no files. To turn it off, uninstall it.
+None: no settings, no environment variables, no files. To turn it off, uninstall it
+(`pi remove npm:pi-system-pin`).
 
 ## pi versions
 
@@ -172,7 +176,7 @@ pi, including both control tests and the real-pi smoke, and opens an issue when 
 
 ## Known issues
 
-- **Windows is untested.** CI runs it but does not require it to pass.
+- **Windows is untested.** CI runs it but it is not required to pass.
 - **Another extension that also returns messages from `context_with_system`** runs before or after this one by
   load order. pi-system-pin only removes section changes from patches it pinned and leaves everything else as
   it receives it.
