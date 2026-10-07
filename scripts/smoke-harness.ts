@@ -1,7 +1,8 @@
 /**
  * The machinery of the real-pi smoke (scripts/pi-smoke.ts): a fake OpenAI-compatible model on loopback that
  * records every request, a fresh agent dir and HOME, this package packed and installed into them the way a user
- * installs it, and pi's RPC stream. No network, no key, and nothing of the person running it is read or written.
+ * installs it, and pi's RPC stream. No network, no key, and nothing of the person running it is read or written:
+ * pi inherits only an allowlisted environment (childEnv), so no key set in the caller's shell reaches it.
  */
 import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
@@ -59,13 +60,31 @@ export interface FakeModel {
   requests: SeenRequest[];
 }
 
+/** The one route pi calls for an `openai-completions` model whose baseUrl ends in `/v1`. */
+const COMPLETION_ROUTE = "/v1/chat/completions";
+
+function parseBody(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Only a POST to the completion route with a JSON body is a model request. Anything else on the port, such as
+ * another process probing loopback ports with `GET /`, gets 404 (or 400) and is not recorded.
+ */
 export function startFakeModel(replies: Reply[]): Promise<FakeModel> {
   const requests: SeenRequest[] = [];
   const server = http.createServer((req, res) => {
     const parts: Buffer[] = [];
     req.on("data", (part: Buffer) => parts.push(part));
     req.on("end", () => {
-      requests.push(seen(JSON.parse(Buffer.concat(parts).toString("utf8"))));
+      if (req.method !== "POST" || req.url !== COMPLETION_ROUTE) return void res.writeHead(404).end();
+      const body = parseBody(Buffer.concat(parts).toString("utf8"));
+      if (typeof body !== "object" || body === null) return void res.writeHead(400).end();
+      requests.push(seen(body));
       answer(res, replies[requests.length - 1] ?? { text: "extra" });
     });
   });
@@ -89,8 +108,16 @@ export function writeAgentDir(root: string, port: number, midConvo: boolean): st
 
 const piCli = path.join(repo, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "bundle", "cli.js");
 
-export function childEnv(root: string, agentDir: string): NodeJS.ProcessEnv {
-  return { ...process.env, HOME: root, USERPROFILE: root, PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: "1" };
+/**
+ * What pi may inherit: the search path, temp dirs, locale, and what Windows needs to start a process. Nothing
+ * else, so no key in the caller's environment can reach pi or the fake provider it is pointed at.
+ */
+const INHERITED = ["PATH", "Path", "PATHEXT", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "SystemRoot", "SYSTEMROOT", "WINDIR", "ComSpec"];
+
+/** pi's environment: the allowlist from `parent`, plus the smoke's own HOME and agent dir, offline. */
+export function childEnv(root: string, agentDir: string, parent: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const inherited = Object.fromEntries(INHERITED.filter((name) => parent[name] !== undefined).map((name) => [name, parent[name]]));
+  return { ...inherited, HOME: root, USERPROFILE: root, PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: "1" };
 }
 
 /** npm, run the way that works on every OS: through the npm that started this script when there is one. */

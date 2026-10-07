@@ -26,5 +26,5 @@ text is not part of it.
   model, with folded and with mid-conversation system messages, plus the same runs without it as controls.
 - CI: tests on Linux and macOS, a secret scan and a package-contents check; a nightly run against the newest
   pi that opens a retire issue when a control check fails, a failure issue for anything else, and a pull request
-  recording a new pi line only when everything passed and the control checks still show the flaw; npm
-  publishing by trusted publishing.
+  recording a new pi line only when everything passed and the control checks still show the flaw, with the
+  write token given only to the steps that push or open issues; npm publishing by trusted publishing.

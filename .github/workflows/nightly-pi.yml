@@ -7,9 +7,12 @@ name: nightly-pi
 # - record: a new release line passed AND both control tests still show the flaw; open a pull request
 #   recording it in pi-compat.json;
 # - fail: anything else failed; open a failure issue.
-# Nothing merges or publishes anything. The job that installs and runs the new
-# pi has a read-only token; only the reporting jobs can write, and they install nothing and run no package
-# scripts.
+# Nothing merges or publishes anything. The job that installs and runs the new pi has a read-only token.
+# The reporting jobs have write permissions, but no checkout keeps credentials and the token is handed only to
+# the one step of each that talks to GitHub: `record` first updates the lockfile (`npm install
+# --package-lock-only --ignore-scripts`, which runs no package scripts) and pi-compat.json
+# (scripts/record-pi-version.ts, from this repository) and commits, with no token in reach; its last step,
+# which runs only git and gh, pushes and opens the pull request. scripts/nightly-workflow.test.ts checks this.
 
 on:
   schedule:
@@ -103,33 +106,39 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ github.token }}
       PI_VERSION: ${{ needs.test.outputs.version }}
+      BRANCH: nightly/pi-${{ needs.test.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-      - name: Open a pull request recording it
+      - name: Record it in a local commit (no token)
         run: |
-          branch="nightly/pi-${PI_VERSION}"
-          open="$(gh pr list --head "$branch" --state open --json number --jq 'length')"
-          if [ "$open" != "0" ]; then echo "a pull request from $branch is already open"; exit 0; fi
-          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
-            echo "$branch exists without an open pull request; opening one"
+          npm install --package-lock-only --ignore-scripts --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+            "@earendil-works/pi-ai@${PI_VERSION}" "@earendil-works/pi-agent-core@${PI_VERSION}"
+          node scripts/record-pi-version.ts "$PI_VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add package.json package-lock.json pi-compat.json
+          git commit -m "pi-compat: record pi ${PI_VERSION} (nightly)"
+      - name: Open a pull request recording it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open="$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')"
+          if [ "$open" != "0" ]; then echo "a pull request from $BRANCH is already open"; exit 0; fi
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            echo "$BRANCH exists without an open pull request; opening one"
           else
-            npm install --package-lock-only --ignore-scripts --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}" \
-              "@earendil-works/pi-ai@${PI_VERSION}" "@earendil-works/pi-agent-core@${PI_VERSION}"
-            node scripts/record-pi-version.ts "$PI_VERSION"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git switch -c "$branch"
-            git add package.json package-lock.json pi-compat.json
-            git commit -m "pi-compat: record pi ${PI_VERSION} (nightly)"
-            git push origin "$branch"
+            gh auth setup-git
+            git push origin "$BRANCH"
           fi
-          if ! gh pr create --head "$branch" --title "Record pi ${PI_VERSION}" --body "The nightly job ran the unit suite, the real-pi session tests, both control tests, the load smoke and the pi binary smoke (pi-system-pin packed and installed with pi install) on pi ${PI_VERSION}, and all passed: pi still has pi#5581 and pi-system-pin still holds the head. Close and reopen this pull request to start CI on it: a pull request opened by the workflow token does not trigger workflows."; then
-            echo "::error::could not open the pull request from $branch. Enable Settings > Actions > General > 'Allow GitHub Actions to create and approve pull requests', or open it by hand; the next nightly run retries."
+          if ! gh pr create --head "$BRANCH" --title "Record pi ${PI_VERSION}" --body "The nightly job ran the unit suite, the real-pi session tests, both control tests, the load smoke and the pi binary smoke (pi-system-pin packed and installed with pi install) on pi ${PI_VERSION}, and all passed: pi still has pi#5581 and pi-system-pin still holds the head. Close and reopen this pull request to start CI on it: a pull request opened by the workflow token does not trigger workflows."; then
+            echo "::error::could not open the pull request from $BRANCH. Enable Settings > Actions > General > 'Allow GitHub Actions to create and approve pull requests', or open it by hand; the next nightly run retries."
             exit 1
           fi
 
@@ -140,13 +149,14 @@ jobs:
     permissions:
       issues: write
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PI_VERSION: ${{ needs.test.outputs.version }}
       ACTION: ${{ needs.test.outputs.action }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Open an issue unless one is open
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$ACTION" = "retire" ]; then
             title="Nightly: pi ${PI_VERSION} no longer has pi#5581, retire pi-system-pin"
