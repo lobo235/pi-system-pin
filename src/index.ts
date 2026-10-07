@@ -77,7 +77,7 @@ export function createSystemPin(options: SystemPinOptions): (pi: ExtensionAPI) =
     });
 
     pi.on("context_with_system", (event, ctx) => {
-      const outcome = pinRequest(event.messages, ctx.sessionManager.getBranch(), pins, userRun);
+      const outcome = pinRequest(event.messages, () => ctx.sessionManager.getBranch(), pins, userRun);
       for (const key of outcome.released) {
         pins.released.add(key);
         pi.appendEntry(RELEASE_ENTRY, { key });

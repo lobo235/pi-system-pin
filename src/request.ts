@@ -15,18 +15,20 @@ export interface PinOutcome {
   released: string[];
 }
 
-/** The request for `messages` on `branch`, given the pins and whether a user run is sending it. */
-export function pinRequest(messages: AgentMessage[], branch: readonly unknown[], pins: Pins, inUserRun: boolean): PinOutcome {
+/**
+ * The request for `messages`, given the pins and whether a user run is sending it. `readBranch` is called at most
+ * once, and not at all while nothing is pinned, so a session that never needed a pin pays no per-request walk.
+ */
+export function pinRequest(messages: AgentMessage[], readBranch: () => readonly unknown[], pins: Pins, inUserRun: boolean): PinOutcome {
+  if (pins.patches.size === 0) return { messages: undefined, released: [] };
+  const branch = readBranch();
   const leading = messages[0];
-  const released = new Set<string>();
-  if (inUserRun) {
-    for (const key of releasableChanges(messages, pins)) released.add(key);
-    const folded = leading ? foldedHold(branch, leading, pins) : undefined;
-    for (const key of folded ? releasableFolded(messages, folded.held) : []) released.add(key);
-  }
-  const current: Pins = { patches: pins.patches, released: new Set([...pins.released, ...released]) };
-  const folded = leading ? foldedHold(branch, leading, current) : undefined;
+  const holdFolded = (given: Pins) => (leading ? foldedHold(branch, leading, given) : undefined);
+  let folded = holdFolded(pins);
+  const released = inUserRun ? [...new Set([...releasableChanges(messages, pins), ...(folded ? releasableFolded(messages, folded.held) : [])])] : [];
+  const current: Pins = released.length === 0 ? pins : { patches: pins.patches, released: new Set([...pins.released, ...released]) };
+  if (current !== pins) folded = holdFolded(current);
   const pinned = pinnedRequest(messages, current);
   const result = folded ? [folded.head, ...pinned.slice(1)] : pinned === messages ? undefined : pinned;
-  return { messages: result, released: [...released] };
+  return { messages: result, released };
 }
