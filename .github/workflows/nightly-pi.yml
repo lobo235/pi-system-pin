@@ -1,0 +1,127 @@
+name: nightly-pi
+
+# Tests pi-system-pin against the newest pi on npm, including the two control tests that assert pi still has
+# the flaw it works around (pi#5581). A failing control test means pi has fixed it and this package should be
+# retired; the issue opened says so. A pass on a pi outside every verified release line opens a pull request
+# recording it in pi-compat.json. Neither merges or publishes anything. The job that installs and runs the new
+# pi has a read-only token; only the reporting jobs can write, and they install nothing and run no package
+# scripts.
+
+on:
+  schedule:
+    - cron: "41 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-pi
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pi.outputs.version }}
+      status: ${{ steps.pi.outputs.status }}
+      control: ${{ steps.control.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      - name: Find the newest pi and how it relates to pi-compat.json
+        id: pi
+        run: |
+          version="$(npm view @earendil-works/pi-coding-agent version)"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "unexpected version: $version" >&2; exit 1; fi
+          status="$(node --input-type=module -e "import { piVersionStatus, readPiCompat } from './src/pi-compat.ts'; console.log(piVersionStatus(process.argv[1], readPiCompat()))" "$version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "newest pi $version: $status"
+
+      - name: Install it
+        if: steps.pi.outputs.status != 'exact'
+        env:
+          PI_VERSION: ${{ steps.pi.outputs.version }}
+        run: npm install --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}"
+
+      - name: Test against it (the version gate and the control tests skipped)
+        if: steps.pi.outputs.status != 'exact'
+        run: |
+          npm run typecheck
+          node --test --test-skip-pattern="the vendored pi is on a release line|^control:" "src/**/*.test.ts"
+          npm run load-smoke
+          npm run smoke
+
+      - name: Control tests (does pi still have the flaw?)
+        id: control
+        if: always() && steps.pi.outputs.status != 'exact' && steps.pi.outputs.version != ''
+        shell: bash
+        run: |
+          node --test --test-name-pattern="^control:" --test-reporter=tap "src/**/*.test.ts" | tee "$RUNNER_TEMP/control.tap"
+          # A renamed control test would match nothing and pass silently: require both to have run.
+          ran="$(grep -cE '^(not )?ok [0-9]+ - control:' "$RUNNER_TEMP/control.tap" || true)"
+          if [ "$ran" != "2" ]; then echo "expected 2 control tests, ran $ran" >&2; exit 1; fi
+
+  record:
+    needs: test
+    if: needs.test.outputs.status == 'unverified'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PI_VERSION: ${{ needs.test.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Open a pull request recording it
+        run: |
+          branch="nightly/pi-${PI_VERSION}"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then echo "$branch already exists"; exit 0; fi
+          npm install --package-lock-only --ignore-scripts --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}"
+          node scripts/record-pi-version.ts "$PI_VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add package.json package-lock.json pi-compat.json
+          git commit -m "pi-compat: record pi ${PI_VERSION} (nightly)"
+          git push origin "$branch"
+          gh pr create --head "$branch" --title "Record pi ${PI_VERSION}" --body "The nightly job ran the unit suite, the real-pi session tests, both control tests, the load smoke and the pi binary smoke on pi ${PI_VERSION}, and all passed: pi still has pi#5581 and pi-system-pin still holds the head. Close and reopen this pull request to start CI on it: a pull request opened by the workflow token does not trigger workflows."
+
+  report-failure:
+    needs: test
+    if: failure() && needs.test.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PI_VERSION: ${{ needs.test.outputs.version }}
+      CONTROL: ${{ needs.test.outputs.control }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open an issue unless one is open
+        run: |
+          if [ "$CONTROL" = "failure" ]; then
+            title="Nightly: pi ${PI_VERSION} no longer has pi#5581, retire pi-system-pin"
+            body="A control test failed on pi ${PI_VERSION}: ${RUN_URL}. The control tests run WITHOUT pi-system-pin and assert that a run started by a custom message still loses the extensions' prompt sections. When one fails, pi has most likely fixed pi#5581 and this package should be retired (README, When to uninstall). Confirm in the log and on https://github.com/earendil-works/pi/issues/5581, then deprecate the npm package and point users to pi ${PI_VERSION}."
+          else
+            title="Nightly: pi-system-pin fails on pi ${PI_VERSION}"
+            body="The nightly run against pi ${PI_VERSION} failed: ${RUN_URL}. The control tests passed, so pi still has pi#5581 (if the pi binary smoke says its control run kept the section, read this as a retirement signal instead). Until it is fixed, add it to the README's Known issues."
+          fi
+          open="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')"
+          if [ "$open" = "0" ]; then
+            gh issue create --title "$title" --body "$body"
+          fi

@@ -1,0 +1,27 @@
+name: Feature request
+description: Something pi-system-pin should do that it does not.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        pi-system-pin is a stopgap for pi#5581 and is meant to be retired once pi fixes it, so new features are
+        mostly out of scope. Describe the problem before the solution. **Do not paste transcripts**; describe
+        their shape.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What happens today that should not, or what you cannot do.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

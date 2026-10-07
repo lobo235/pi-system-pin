@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: The upstream pi issue (pi#5581)
+    url: https://github.com/earendil-works/pi/issues/5581
+    about: The pi bug this package works around. Discuss the fix in pi itself there.
+  - name: Report a vulnerability
+    url: https://github.com/lobo235/pi-system-pin/security/advisories/new
+    about: Report security problems privately, never in a public issue.
