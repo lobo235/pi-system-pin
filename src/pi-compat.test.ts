@@ -32,6 +32,16 @@ test("pi-compat: the vendored pi is on a release line this extension was verifie
   }
 });
 
+test("pi-compat: the pi-ai and pi-agent-core the tests import are the vendored pi's own versions", () => {
+  // pi publishes its packages in lockstep. Another version fails the typecheck (two AgentMessage types) and can put
+  // the session tests' faux model in a pi-ai copy pi does not run, so the nightly installs all three together.
+  for (const name of ["pi-ai", "pi-agent-core"]) {
+    const manifest = new URL(`../node_modules/@earendil-works/${name}/package.json`, import.meta.url);
+    const version = (JSON.parse(readFileSync(manifest, "utf8")) as { version: string }).version;
+    assert.equal(version, vendoredVersion, `@earendil-works/${name} ${version} is not pi ${vendoredVersion}'s; install them at the same version`);
+  }
+});
+
 test("piVersionStatus: exact, the same major.minor line, or unverified (table)", () => {
   const compat = record("1.0.4", "0.99.1");
   for (const [version, expected] of [

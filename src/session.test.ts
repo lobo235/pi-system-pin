@@ -23,7 +23,7 @@ import {
   type ExtensionAPI,
   type ExtensionFactory,
 } from "@earendil-works/pi-coding-agent";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentSystemPrompt } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentSystemPrompt, getCurrentTools } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 
 import { PATCH_ENTRY } from "./entries.ts";
@@ -68,6 +68,8 @@ afterEach(() => assert.deepEqual(extensionErrors.splice(0), [], "an extension ha
 const SUMMARIZER = "You are a context summarization assistant";
 
 interface SessionOptions {
+  /** Receives the tool names every agent request declares, in request order. */
+  tools?: string[][];
   /** pi's compaction setting: how much recent context a compaction keeps verbatim. */
   keepRecentTokens?: number;
   /** Counts the compaction summarizer's requests. */
@@ -85,6 +87,7 @@ async function openSession(dir: string, extensions: ExtensionFactory[], sessionM
       return TEXT("## Goal\nThe synthetic summary.");
     }
     heads.push(head);
+    options.tools?.push(getCurrentTools(context.messages as never).map((tool) => tool.name));
     return queue.shift() ?? TEXT("unscripted");
   };
   faux.setResponses(Array.from({ length: replies.length + 4 }, () => answer));
@@ -265,4 +268,42 @@ test("with system-pin, pi's own compaction between pinned runs keeps the head, a
     for (const index of [4, 5]) assert.equal(heads[index], heads[0], `${name}: the custom run after the compaction (request ${index + 1}) changed the system block`);
     for (const [index, head] of heads.entries()) assert.equal(head, heads[0], `${name}: request ${index + 1} changed the system block`);
   }
+});
+
+/** An extension that registers a tool when the first custom message arrives, so pi's next patch also adds a tool. */
+const lateToolRegistrar: ExtensionFactory = (pi: ExtensionAPI) => {
+  let registered = false;
+  pi.on("message_end", (event) => {
+    if (registered || event.message.role !== "custom") return;
+    registered = true;
+    pi.registerTool({
+      name: "late_tool",
+      label: "late_tool",
+      description: "Registered during a custom-message run.",
+      parameters: Type.Object({}),
+      execute: async () => ({ content: [{ type: "text", text: "done" }], details: {} }),
+    });
+  });
+};
+
+test("with system-pin, a pinned patch that also adds a tool keeps the tool and holds only the section", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "system-pin-"));
+  const heads: string[] = [];
+  const tools: string[][] = [];
+  const replies = [TEXT("first"), TOOL_CALL(), TEXT("after the notice"), TEXT("second")];
+  const session = await openSession(dir, [sectionAdder(), lateToolRegistrar, systemPin], SessionManager.inMemory(dir), replies, heads, { tools });
+  try {
+    await session.prompt("hello");
+    await session.sendCustomMessage(notice, { triggerTurn: true });
+    await session.prompt("again");
+    const pinnedPatches = session.sessionManager.getEntries().filter((entry) => entry.type === "custom" && entry.customType === PATCH_ENTRY);
+    assert.equal(pinnedPatches.length, 1, "the custom run's patch, with both changes, is pinned");
+  } finally {
+    session.dispose();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  assert.equal(heads.length, 4, "four model requests");
+  for (const [index, head] of heads.entries()) assert.equal(head, heads[0], `request ${index + 1} changed the system block`);
+  assert.ok(!tools[1].includes("late_tool"), "the tool did not exist before the custom message");
+  for (const index of [2, 3]) assert.ok(tools[index].includes("late_tool"), `request ${index + 1} declares the tool the pinned patch added`);
 });
