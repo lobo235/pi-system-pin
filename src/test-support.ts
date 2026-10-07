@@ -14,8 +14,8 @@ export interface FakePi {
   end(message: unknown): void;
   /** The request transform: what `context_with_system` hands back for these messages. */
   request(messages: unknown[]): unknown;
-  /** Entries on the fake transcript, appended by the extension or seeded by the test. */
-  entries: Array<{ type: "custom"; customType: string; data: unknown }>;
+  /** Entries on the fake transcript (also its branch), appended by the extension or seeded by the test. */
+  entries: Array<{ type: string; customType?: string; data?: unknown; [field: string]: unknown }>;
   notices: Array<{ text: string; level: string | undefined }>;
   /** Makes every later notify throw, as a broken UI would. */
   breakNotify(): void;
@@ -27,7 +27,7 @@ export function fakePi(register: (pi: ExtensionAPI) => void): FakePi {
   const notices: FakePi["notices"] = [];
   let notifyBroken = false;
   const ctx = {
-    sessionManager: { getEntries: () => [...entries] },
+    sessionManager: { getEntries: () => [...entries], getBranch: () => [...entries] },
     ui: {
       notify: (text: string, level?: string) => {
         if (notifyBroken) throw new Error("ui gone");

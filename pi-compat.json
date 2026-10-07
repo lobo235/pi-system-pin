@@ -5,7 +5,7 @@
       "pi": "1.0.4",
       "date": "2026-10-07",
       "how": [
-        "npm test on the vendored pi 1.0.4: typecheck, unit suite, the real-pi session tests (both control tests pass: without system-pin, pi still drops an added section and reverts a rewritten one; with it, every head is byte-identical), the load smoke",
+        "npm test on the vendored pi 1.0.4: typecheck, unit suite, the real-pi session tests, including pi's own compaction with the pinned patch kept and summarized (both control tests pass: without system-pin, pi still drops an added section and reverts a rewritten one; with it, every head is byte-identical), the load smoke",
         "npm run smoke: the pi 1.0.4 binary over RPC with only the fixture and this extension, fresh agent dir, fake model; the control run lost the section and the pinned run kept all four heads byte-identical with one system-pin.patch entry"
       ]
     }

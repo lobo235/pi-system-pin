@@ -9,7 +9,7 @@ Human contributors: [CONTRIBUTING.md](CONTRIBUTING.md) says the same with more c
 
 ```bash
 npm ci                 # Node >= 22.19; installs the vendored pi as a devDependency
-npm test               # typecheck + every src/**/*.test.ts + load smoke + pi binary smoke; must pass before any commit
+npm test               # typecheck + every src/ and scripts/ test + load smoke + pi binary smoke; must pass before any commit
 npm run typecheck      # tsc only
 node --test src/pin.test.ts   # one file
 npm run smoke          # the vendored pi binary over RPC, fresh agent dir, fake model on loopback (--keep to inspect)
@@ -20,11 +20,14 @@ npm run check-pack     # what npm would publish: nothing test-only, nothing miss
 
 - `src/index.ts`: the extension entry (events, run lifecycle, the pi-version warning).
 - `src/patch.ts`: a system patch and its key. `src/pin.ts`: holding pinned changes back, and the release rule.
+- `src/fold.ts`: pinned changes pi folded into a compaction's head. `src/request.ts`: the request a
+  `context_with_system` handler returns, combining both.
 - `src/entries.ts`: the `system-pin.patch` / `system-pin.release` transcript entries.
 - `src/pi-compat.ts` + `pi-compat.json`: the pi versions verified, and the version-line check.
 - `src/session.test.ts`: a real pi session with a fake model, including the two `control:` tests.
 - `src/test-support.ts`: an in-memory pi for the wiring tests (not shipped).
-- `scripts/`: the pi binary smoke and its fixture extension, the package check, `record-pi-version.ts`.
+- `scripts/`: the pi binary smoke and its fixture extension, the package check, `record-pi-version.ts`, and
+  `nightly-action.ts` (what the nightly job reports: retire, record or fail).
 
 ## Invariants (do not break these)
 
@@ -34,8 +37,10 @@ npm run check-pack     # what npm would publish: nothing test-only, nothing miss
    flaw. When they fail, pi has fixed it and the package is retired; never weaken them to make a pi pass.
 3. **pi versions are verified, not assumed.** `src/pi-compat.test.ts` fails on a vendored pi that
    `pi-compat.json` does not list. Do not add a version without the procedure in CONTRIBUTING.md.
-4. **It only removes.** A request never carries anything the transcript does not; the leading system message
-   and the transcript's own messages are never rewritten.
+4. **It only holds back.** A request never carries anything the transcript does not, and the transcript is never
+   rewritten. Held section changes are left out of the patch messages and, after a compaction, out of the
+   leading system message pi folded them into, rebuilt from the original system messages on the branch only when
+   that replay gives pi's own folded head.
 5. **Transcript bytes are untrusted.** Entry data is type-checked before use; parsing never throws on content.
 6. **Fixtures are synthetic.** No real transcript, hostname, IP address, user name or key, even redacted.
 

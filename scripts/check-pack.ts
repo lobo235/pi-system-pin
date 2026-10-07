@@ -7,7 +7,7 @@ import * as path from "node:path";
 
 const repo = path.join(import.meta.dirname, "..");
 const REQUIRED = ["package.json", "README.md", "LICENSE", "CHANGELOG.md", "pi-compat.json",
-  "src/index.ts", "src/entries.ts", "src/patch.ts", "src/pin.ts", "src/pi-compat.ts"];
+  "src/index.ts", "src/entries.ts", "src/patch.ts", "src/pin.ts", "src/fold.ts", "src/request.ts", "src/pi-compat.ts"];
 const FORBIDDEN = [/\.test\.ts$/, /^src\/test-support\.ts$/, /^scripts\//, /^\.github\//, /^load-smoke\.mjs$/,
   /^AGENTS\.md$/, /^CLAUDE\.md$/, /^CONTRIBUTING\.md$/, /^tsconfig\.json$/, /\.env/, /\.tgz$/];
 

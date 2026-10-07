@@ -6,7 +6,7 @@
  *
  * The two tests named `control:` run WITHOUT system-pin and assert that pi still has the flaw (pi#5581).
  * They are the retirement signal: when one fails on a new pi, pi has fixed the flaw and system-pin should be
- * uninstalled (README, When to uninstall). Do not weaken or delete them to make a pi upgrade pass.
+ * uninstalled (README, When pi fixes pi#5581). Do not weaken or delete them to make a pi upgrade pass.
  */
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -64,18 +64,33 @@ const TOOL_CALL = (): Reply => fauxAssistantMessage(fauxToolCall("noop", {}), { 
 const extensionErrors: string[] = [];
 afterEach(() => assert.deepEqual(extensionErrors.splice(0), [], "an extension handler threw"));
 
-/** A real pi session on a faux model; every request's leading system text lands in `heads`. */
-async function openSession(dir: string, extensions: ExtensionFactory[], sessionManager: SessionManager, replies: Reply[], heads: string[]) {
+/** pi's own compaction summarizer; its requests are answered with a fixed summary and kept out of `heads`. */
+const SUMMARIZER = "You are a context summarization assistant";
+
+interface SessionOptions {
+  /** pi's compaction setting: how much recent context a compaction keeps verbatim. */
+  keepRecentTokens?: number;
+  /** Counts the compaction summarizer's requests. */
+  summaries?: { count: number };
+}
+
+/** A real pi session on a faux model; every agent request's leading system text lands in `heads`. */
+async function openSession(dir: string, extensions: ExtensionFactory[], sessionManager: SessionManager, replies: Reply[], heads: string[], options: SessionOptions = {}) {
   const faux = fauxProvider();
-  faux.setResponses(
-    replies.map((message) => (context: { messages: unknown[] }) => {
-      heads.push(getCurrentSystemPrompt(context.messages as never));
-      return message;
-    }),
-  );
+  const queue = [...replies];
+  const answer = (context: { messages: unknown[] }) => {
+    const head = getCurrentSystemPrompt(context.messages as never);
+    if (head.startsWith(SUMMARIZER)) {
+      if (options.summaries) options.summaries.count += 1;
+      return TEXT("## Goal\nThe synthetic summary.");
+    }
+    heads.push(head);
+    return queue.shift() ?? TEXT("unscripted");
+  };
+  faux.setResponses(Array.from({ length: replies.length + 4 }, () => answer));
   const modelRuntime = await ModelRuntime.create({ authPath: path.join(dir, "auth.json"), modelsPath: null, refreshOnCreate: false });
   modelRuntime.registerNativeProvider(faux.provider);
-  const settingsManager = SettingsManager.inMemory();
+  const settingsManager = SettingsManager.inMemory(options.keepRecentTokens === undefined ? {} : { compaction: { keepRecentTokens: options.keepRecentTokens } });
   const resourceLoader = new DefaultResourceLoader({
     cwd: dir,
     agentDir: dir,
@@ -122,7 +137,7 @@ async function runScenario(extensions: ExtensionFactory[], beforeSecondPrompt: (
   }
 }
 
-const RETIRE = "pi no longer has the flaw (pi#5581 fixed?): verify, then retire pi-system-pin (README, When to uninstall)";
+const RETIRE = "pi no longer has the flaw (pi#5581 fixed?): verify, then retire pi-system-pin (README, When pi fixes pi#5581)";
 
 test("control: without system-pin, a custom-message run drops a section an extension added", async () => {
   const { heads } = await runScenario([sectionAdder()]);
@@ -204,4 +219,50 @@ test("with system-pin, a session whose first run a custom message starts changes
   assert.equal(heads[1], heads[0], "the first custom run keeps its head on its second turn");
   assert.ok(heads[2].includes(SECTION_TEXT), "the first user run carries the section");
   for (const index of [3, 4]) assert.equal(heads[index], heads[2], `request ${index + 1} changed the system block`);
+});
+
+/**
+ * A user run, a second user run, a two-turn custom run whose patch is pinned, pi's own compaction, a custom run
+ * right after it, and a user run: seven agent requests. Reports whether the pinned patch message stayed in the
+ * compaction's kept window or was summarized.
+ */
+async function runCompactionScenario(keepRecentTokens: number): Promise<{ heads: string[]; patchKept: boolean }> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "system-pin-"));
+  const heads: string[] = [];
+  const summaries = { count: 0 };
+  const replies = [TEXT("first ".repeat(2000)), TEXT("ok"), TOOL_CALL(), TEXT("after the notice"), TOOL_CALL(), TEXT("after the second notice"), TEXT("second")];
+  const session = await openSession(dir, [sectionAdder(), systemPin], SessionManager.inMemory(dir), replies, heads, { keepRecentTokens, summaries });
+  try {
+    await session.prompt("hello");
+    await session.prompt("short");
+    await session.sendCustomMessage(notice, { triggerTurn: true });
+    const pin = session.sessionManager.getBranch().find((entry) => entry.type === "custom" && entry.customType === PATCH_ENTRY);
+    const { firstKeptEntryId } = await session.compact();
+    assert.ok(summaries.count > 0, "pi's own summarizer ran");
+    const branch = session.sessionManager.getBranch();
+    assert.ok(pin && branch.includes(pin), "the pin written before the compaction is still on the branch");
+    const patchIndex = branch.findIndex((entry, index) => index > branch.indexOf(pin) && entry.type === "message" && entry.message.role === "system");
+    const patchKept = patchIndex >= branch.findIndex((entry) => entry.id === firstKeptEntryId);
+    await session.sendCustomMessage({ ...notice, content: "task T2 finished" }, { triggerTurn: true });
+    await session.prompt("again");
+    return { heads, patchKept };
+  } finally {
+    session.dispose();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("with system-pin, pi's own compaction between pinned runs keeps the head, and a custom run right after it is still held (table)", async () => {
+  // At a compaction pi folds the current system state, held pinned changes included, into the leading system
+  // message; system-pin rebuilds that head from the branch without them. The pinned patch message may also stay
+  // in the kept window, where it is held as before.
+  for (const [keepRecentTokens, kept] of [[300, true], [5, false]] as const) {
+    const name = `the pinned patch ${kept ? "in the kept window" : "summarized"}`;
+    const { heads, patchKept } = await runCompactionScenario(keepRecentTokens);
+    assert.equal(patchKept, kept, name);
+    assert.equal(heads.length, 7, `${name}: seven agent requests`);
+    assert.ok(heads[0].includes(SECTION_TEXT), name);
+    for (const index of [4, 5]) assert.equal(heads[index], heads[0], `${name}: the custom run after the compaction (request ${index + 1}) changed the system block`);
+    for (const [index, head] of heads.entries()) assert.equal(head, heads[0], `${name}: request ${index + 1} changed the system block`);
+  }
 });

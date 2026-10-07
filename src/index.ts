@@ -13,14 +13,15 @@
  * (a `system-pin.patch` entry) and holds its section changes back from every request, keeping its tool
  * changes. The next user run decides: if it puts the section back, the head stays byte-identical; if it
  * leaves the section alone, it agrees with the change, which is RELEASED (a `system-pin.release` entry) and
- * applies from then on. The transcript's own system messages are never rewritten.
+ * applies from then on. A held change pi folds into a compaction's leading system message is left out there
+ * too (fold.ts). The transcript's own system messages are never rewritten.
  */
 import { VERSION, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { PATCH_ENTRY, readPins, RELEASE_ENTRY, type MutablePins } from "./entries.ts";
 import { changedSections, isSystemPatch, patchKey } from "./patch.ts";
 import { readPiCompat, unverifiedPiVersionNotice, type PiCompat } from "./pi-compat.ts";
-import { pinnedRequest, releasableChanges } from "./pin.ts";
+import { pinRequest } from "./request.ts";
 
 export interface SystemPinOptions {
   /** The running pi's version (`VERSION` from pi-coding-agent). */
@@ -75,15 +76,13 @@ export function createSystemPin(options: SystemPinOptions): (pi: ExtensionAPI) =
       pi.appendEntry(PATCH_ENTRY, { key });
     });
 
-    pi.on("context_with_system", (event) => {
-      if (userRun) {
-        for (const key of releasableChanges(event.messages, pins)) {
-          pins.released.add(key);
-          pi.appendEntry(RELEASE_ENTRY, { key });
-        }
+    pi.on("context_with_system", (event, ctx) => {
+      const outcome = pinRequest(event.messages, ctx.sessionManager.getBranch(), pins, userRun);
+      for (const key of outcome.released) {
+        pins.released.add(key);
+        pi.appendEntry(RELEASE_ENTRY, { key });
       }
-      const messages = pinnedRequest(event.messages, pins);
-      return messages === event.messages ? undefined : { messages };
+      return outcome.messages ? { messages: outcome.messages } : undefined;
     });
   };
 }

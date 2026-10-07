@@ -164,3 +164,39 @@ test("pi version: a notice the UI cannot show never breaks the session", () => {
   pi.end(patch(3, { shell: null }));
   assert.equal(pinned(pi).length, 1);
 });
+
+/** A branch where a custom run's pinned deletion was folded into a compaction's head (pi does this at a compaction). */
+function compactedOverPin() {
+  const pi = started();
+  const deletion = patch(4, { shell: null });
+  pi.end(custom(2));
+  pi.end(deletion);
+  const folded = { role: "system", content: "", timestamp: 100 };
+  pi.entries.unshift({ type: "message", message: head }, { type: "message", message: custom(2) });
+  pi.entries.push({ type: "message", message: deletion }, { type: "compaction", systemMessage: folded });
+  return { pi, deletion, folded };
+}
+
+test("context_with_system after a compaction that folded a held change: the head is rebuilt without it", () => {
+  const { pi, folded } = compactedOverPin();
+  pi.end(custom(101));
+  assert.deepEqual(pi.request([folded, custom(101)]), { messages: [{ ...folded, sections: { shell: "S" } }, custom(101)] });
+});
+
+test("context_with_system in a user run after a compaction releases a folded change the run left alone", () => {
+  const { pi, deletion, folded } = compactedOverPin();
+  pi.emit("before_agent_start");
+  pi.end(user(101));
+  assert.equal(pi.request([folded, user(101)]), undefined, "released, so pi's own folded head applies");
+  assert.deepEqual(released(pi), [{ key: `${patchKey(deletion)}#shell` }]);
+});
+
+test("context_with_system in a user run after a compaction keeps the folded change held when the run restores it", () => {
+  const { pi, folded } = compactedOverPin();
+  const restore = patch(101, { shell: "S" });
+  pi.emit("before_agent_start");
+  pi.end(restore);
+  pi.end(user(102));
+  assert.deepEqual(pi.request([folded, restore, user(102)]), { messages: [{ ...folded, sections: { shell: "S" } }, restore, user(102)] });
+  assert.deepEqual(released(pi), []);
+});

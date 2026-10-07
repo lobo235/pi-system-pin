@@ -14,14 +14,14 @@ export interface Pins {
   released: ReadonlySet<string>;
 }
 
-interface HeldChange {
+export interface HeldChange {
   index: number;
   key: string;
   sections: string[];
 }
 
 /** The pinned section changes still held back, by message index. The leading system message is never one. */
-function heldChanges(messages: AgentMessage[], pins: Pins): HeldChange[] {
+export function heldChanges(messages: AgentMessage[], pins: Pins): HeldChange[] {
   if (pins.patches.size === 0) return [];
   const held: HeldChange[] = [];
   messages.forEach((message, index) => {

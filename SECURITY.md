@@ -20,8 +20,9 @@ The latest release.
 
 pi-system-pin makes no network calls and reads and writes no files. It writes two kinds of small custom entries
 to the session transcript, and on every request it can only **remove** section changes from system patches it
-pinned. It never adds text to a request, never touches the leading system message, and never rewrites a
-message on the transcript.
+pinned, and after a compaction it rebuilds the leading system message without those changes, from the
+original system messages on the branch. A request never carries text the transcript does not, and no message
+on the transcript is ever rewritten.
 
 ## Scope
 
