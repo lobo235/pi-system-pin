@@ -2,8 +2,9 @@
  * What the nightly job does after testing the newest pi: `node scripts/nightly-action.ts <version> <status>
  * <suite outcome> <control outcome>` prints one of:
  *
- * - `retire`: a control test failed, so pi no longer has the flaw; open the retire issue and never record the version;
- * - `record`: a new release line passed AND both control tests still show the flaw; open the record pull request;
+ * - `retire`: a control check failed (a control test or the smoke's control runs), so pi no longer has the flaw;
+ *   open the retire issue and never record the version;
+ * - `record`: a new release line passed AND every control check still shows the flaw; open the record pull request;
  * - `fail`: something else failed; open a failure issue;
  * - `none`: nothing ran, or a version on a verified line passed.
  *

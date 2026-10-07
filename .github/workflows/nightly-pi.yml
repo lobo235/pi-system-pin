@@ -2,7 +2,8 @@ name: nightly-pi
 
 # Tests pi-system-pin against the newest pi on npm, including the two control tests that assert pi still has
 # the flaw it works around (pi#5581). scripts/nightly-action.ts turns the outcome into one action:
-# - retire: a control test failed, so pi has most likely fixed the flaw; open the retire issue, never record;
+# - retire: a control check failed (either control test, or the control runs of the pi binary smoke), so pi has
+#   most likely fixed the flaw; open the retire issue, never record;
 # - record: a new release line passed AND both control tests still show the flaw; open a pull request
 #   recording it in pi-compat.json;
 # - fail: anything else failed; open a failure issue.
@@ -52,7 +53,10 @@ jobs:
         if: steps.pi.outputs.status != 'exact'
         env:
           PI_VERSION: ${{ steps.pi.outputs.version }}
-        run: npm install --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}"
+        # pi publishes these in lockstep; the tests import all three (src/pi-compat.test.ts checks they match).
+        run: |
+          npm install --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+            "@earendil-works/pi-ai@${PI_VERSION}" "@earendil-works/pi-agent-core@${PI_VERSION}"
 
       - name: Test against it (the version gate and the control tests skipped)
         id: suite
@@ -63,7 +67,7 @@ jobs:
           npm run load-smoke
           npm run smoke
 
-      - name: Control tests (does pi still have the flaw?)
+      - name: Control checks (does pi still have the flaw?)
         id: control
         if: always() && steps.pi.outputs.status != 'exact' && steps.pi.outputs.version != ''
         shell: bash
@@ -72,6 +76,8 @@ jobs:
           # A renamed control test would match nothing and pass silently: require both to have run.
           ran="$(grep -cE '^(not )?ok [0-9]+ - control:' "$RUNNER_TEMP/control.tap" || true)"
           if [ "$ran" != "2" ]; then echo "expected 2 control tests, ran $ran" >&2; exit 1; fi
+          # The same check with the pi binary over RPC, with folded and with mid-conversation system messages.
+          node scripts/pi-smoke.ts --control-only
 
       - name: Decide what to report
         id: decide
@@ -88,8 +94,9 @@ jobs:
 
   record:
     needs: test
-    # Only when the suite passed AND both control tests still show the flaw (nightly-action.ts); never after a
-    # control failure, which reports the retire issue instead.
+    # Only when the suite passed AND every control check still shows the flaw (nightly-action.ts); never after a
+    # control failure, which reports the retire issue instead. Opening the pull request needs the repository
+    # setting "Allow GitHub Actions to create and approve pull requests" (CONTRIBUTING.md, Repository settings).
     if: always() && needs.test.outputs.action == 'record'
     runs-on: ubuntu-latest
     permissions:
@@ -106,16 +113,25 @@ jobs:
       - name: Open a pull request recording it
         run: |
           branch="nightly/pi-${PI_VERSION}"
-          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then echo "$branch already exists"; exit 0; fi
-          npm install --package-lock-only --ignore-scripts --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}"
-          node scripts/record-pi-version.ts "$PI_VERSION"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add package.json package-lock.json pi-compat.json
-          git commit -m "pi-compat: record pi ${PI_VERSION} (nightly)"
-          git push origin "$branch"
-          gh pr create --head "$branch" --title "Record pi ${PI_VERSION}" --body "The nightly job ran the unit suite, the real-pi session tests, both control tests, the load smoke and the pi binary smoke on pi ${PI_VERSION}, and all passed: pi still has pi#5581 and pi-system-pin still holds the head. Close and reopen this pull request to start CI on it: a pull request opened by the workflow token does not trigger workflows."
+          open="$(gh pr list --head "$branch" --state open --json number --jq 'length')"
+          if [ "$open" != "0" ]; then echo "a pull request from $branch is already open"; exit 0; fi
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "$branch exists without an open pull request; opening one"
+          else
+            npm install --package-lock-only --ignore-scripts --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+              "@earendil-works/pi-ai@${PI_VERSION}" "@earendil-works/pi-agent-core@${PI_VERSION}"
+            node scripts/record-pi-version.ts "$PI_VERSION"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git add package.json package-lock.json pi-compat.json
+            git commit -m "pi-compat: record pi ${PI_VERSION} (nightly)"
+            git push origin "$branch"
+          fi
+          if ! gh pr create --head "$branch" --title "Record pi ${PI_VERSION}" --body "The nightly job ran the unit suite, the real-pi session tests, both control tests, the load smoke and the pi binary smoke (pi-system-pin packed and installed with pi install) on pi ${PI_VERSION}, and all passed: pi still has pi#5581 and pi-system-pin still holds the head. Close and reopen this pull request to start CI on it: a pull request opened by the workflow token does not trigger workflows."; then
+            echo "::error::could not open the pull request from $branch. Enable Settings > Actions > General > 'Allow GitHub Actions to create and approve pull requests', or open it by hand; the next nightly run retries."
+            exit 1
+          fi
 
   report-failure:
     needs: test
@@ -134,10 +150,10 @@ jobs:
         run: |
           if [ "$ACTION" = "retire" ]; then
             title="Nightly: pi ${PI_VERSION} no longer has pi#5581, retire pi-system-pin"
-            body="A control test failed on pi ${PI_VERSION}: ${RUN_URL}. The control tests run WITHOUT pi-system-pin and assert that a run started by a custom message still loses the extensions' prompt sections. When one fails, pi has most likely fixed pi#5581 and this package should be retired (README, When pi fixes pi#5581). Confirm in the log and on https://github.com/earendil-works/pi/issues/5581, then make the final release (pi-compat.json stopping at the last affected pi line) and npm deprecate the package with a message naming the fixed pi version."
+            body="A control check failed on pi ${PI_VERSION}: ${RUN_URL}. The control checks run WITHOUT pi-system-pin and assert that a run started by a custom message still loses the extensions' prompt sections. When one fails, pi has most likely fixed pi#5581 and this package should be retired (README, When pi fixes pi#5581). Confirm in the log and on https://github.com/earendil-works/pi/issues/5581, then make the final release (pi-compat.json stopping at the last affected pi line) and npm deprecate the package with a message naming the fixed pi version."
           else
             title="Nightly: pi-system-pin fails on pi ${PI_VERSION}"
-            body="The nightly run against pi ${PI_VERSION} failed: ${RUN_URL}. The control tests passed, so pi still has pi#5581 (if the pi binary smoke says its control run kept the section, read this as a retirement signal instead). Until it is fixed, add it to the README's Known issues."
+            body="The nightly run against pi ${PI_VERSION} failed: ${RUN_URL}. The control checks passed, so pi still has pi#5581. Until it is fixed, add it to the README's Known issues."
           fi
           open="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')"
           if [ "$open" = "0" ]; then
