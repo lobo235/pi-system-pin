@@ -33,7 +33,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "npm run typecheck && node --test \"src/**/*.test.ts\" && npm run load-smoke && npm run smoke",
+    "test": "npm run typecheck && node --test \"src/**/*.test.ts\" \"scripts/**/*.test.ts\" && npm run load-smoke && npm run smoke",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "load-smoke": "node load-smoke.mjs",
     "smoke": "node scripts/pi-smoke.ts",

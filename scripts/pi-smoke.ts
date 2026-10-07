@@ -8,7 +8,7 @@
  * head of every request. It runs the scenario twice:
  *
  * - control, without system-pin: the custom run's second turn must lose the fixture's section. If it does
- *   not, pi no longer has the flaw and system-pin should be retired (README, When to uninstall).
+ *   not, pi no longer has the flaw and system-pin should be retired (README, When pi fixes pi#5581).
  * - with system-pin: the extension loads and registers, every request's head is byte-identical, and the
  *   transcript carries a `system-pin.patch` entry.
  *

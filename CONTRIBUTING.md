@@ -50,8 +50,9 @@ pi-system-pin relies on pi internals, so each pi release line is verified before
    open an issue to retire the package.** Any other failure is a pi change to handle first.
 3. Record it: `node scripts/record-pi-version.ts <version> "<what you ran>" "<what you ran>"`.
 
-A nightly job runs steps 1 and 2 against the newest pi. When they pass on a new release line it opens a pull
-request recording it; when they fail it opens an issue.
+A nightly job runs steps 1 and 2 against the newest pi. When a control test fails it opens an issue to retire
+the package and records nothing. When everything passes on a new release line, the control tests included, it
+opens a pull request recording it. Any other failure opens a failure issue.
 
 ## Licence
 

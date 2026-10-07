@@ -12,7 +12,7 @@ caches prompt prefixes has to read the whole conversation again, twice per such 
 fallback changes back, so the system block stays the same whatever started the run.
 
 It is a workaround, not a feature. When pi fixes the flaw upstream, remove it (see
-[When to uninstall](#when-to-uninstall)); its tests are built to tell you when that has happened.
+[When pi fixes pi#5581](#when-pi-fixes-pi5581)); its tests are built to tell you when that has happened.
 
 ## Do you need it?
 
@@ -80,13 +80,20 @@ head from every patch, so requests 3 and 4 each start with different bytes than 
   `system-pin.patch` entry on the transcript.
 - **Hold.** On every request (pi's `context_with_system` event), the section changes of pinned patches are
   left out. Their tool changes stay, because those are real. A patch left with nothing is left out whole. The
-  leading system message is never touched, and the transcript's own messages are never rewritten.
+  transcript's own messages are never rewritten.
 - **Restore in place.** When the next user run puts the section back, its patch sets the same text the
   request already carries, and pi-ai replaces a section where it stands, so the head stays byte-identical.
 - **Release.** At each request of a user run, a held change that no later patch touches is one that run
   agreed with: an extension stopped adding the section, or a context file changed. It is recorded in a
   `system-pin.release` entry and applies from then on. The head is rewritten once, at the moment it really
   changed.
+
+- **Compaction.** At a compaction pi stores the current system state, every system message replayed, on the
+  compaction entry, and that becomes the leading system message of every later request. A change still held
+  at that moment is folded into it. pi-system-pin rebuilds that head the same way from the original system
+  messages, which stay on the branch, leaving the held changes out. It does so only when replaying the branch
+  gives exactly pi's own folded head; otherwise it leaves the head as pi built it. Release works as above: a
+  user run that leaves a folded section alone releases it.
 
 Both entry types live on the transcript, so a reopened session sends the same requests as before.
 
@@ -95,33 +102,39 @@ Both entry types live on the transcript, so a reopened session sends the same re
 - **It reads pi internals** that are not a stable API: the system patch shape (`sections`, `toolsAdded`,
   `toolsRemoved`), the `context_with_system` event and the run lifecycle events. Each pi release line is
   verified before it is listed (see [pi versions](#pi-versions)).
-- **Per request**, one pass over the messages and a SHA-256 hash of each system patch's sections. **Per pin
-  or release**, one small custom entry on the transcript. No network calls, no files, no model calls.
+- **Per request**, one pass over the messages and a SHA-256 hash of each system patch's sections, plus, once a
+  compaction is on the branch, one pass over the branch's entries. **Per pin or release**, one small custom
+  entry on the transcript. No network calls, no files, no model calls.
 - **A change a custom-message run makes on purpose waits** for the next user run. On pi 1.0.4 no extension can
   make one, since custom runs never reach `before_agent_start`.
 - **The first run of a session**, when a custom message starts it before any user prompt, is sent by pi 1.0.4
   with no system prompt at all. pi-system-pin keeps that run's head as it started; the head changes once, at
   the first user prompt.
 - **Patches written before you installed it are not pinned.** The head is stable from the first pinned patch on.
-- **Compaction is not covered by the tests.** pi-system-pin acts only on pinned patches still present in a
-  request; a compaction that summarizes them away leaves nothing for it to hold.
+- **Compaction is tested with pi's own compaction** on a fake model, with the pinned patch both kept in the
+  recent window and summarized. pi 1.0.4 stores the system state on every compaction entry, including one an
+  extension's compactor made, so those take the same path, but only pi's own compaction is tested.
 - **The tests use a fake model.** They prove that the request pi hands the provider keeps the same system
   block; they do not measure any provider's cache.
 
-## When to uninstall
+## When pi fixes pi#5581
 
 pi#5581 is open, labelled `bug` and `inprogress`. Once pi runs `before_agent_start` (or an equivalent
 preparation step) for runs started by custom messages, the fallback patches stop and pi-system-pin has nothing
 left to do.
 
-The signal is in the tests. Two of them, named `control:` in
-[src/session.test.ts](src/session.test.ts), run a real pi session **without** pi-system-pin and assert that pi
-still has the flaw: one checks that a custom run drops a section an extension added, the other that it reverts
-a built-in section an extension rewrote. The real-pi smoke (`npm run smoke`) makes the same check with the pi
-binary. When either starts failing on a new pi, pi has fixed the flaw. A nightly job runs them against the
-newest pi and opens an issue that says so.
+**How the fix is detected.** Two tests, named `control:` in [src/session.test.ts](src/session.test.ts), run a
+real pi session **without** pi-system-pin and assert that pi still has the flaw: one checks that a custom run
+drops a section an extension added, the other that it reverts a built-in section an extension rewrote. The
+real-pi smoke (`npm run smoke`) makes the same check with the pi binary. A nightly job runs them against the
+newest pi. When a control test fails, it opens an issue saying pi has fixed the flaw, and it never records that
+pi as verified.
 
-Then:
+**What happens to this package then.** A final release whose `pi-compat.json` stops at the last pi line that
+has the flaw, then `npm deprecate` with a message naming the pi version that fixed it. There is no date; it
+follows pi.
+
+**What you do.** Once you run that pi version or newer, uninstall it:
 
 ```bash
 pi remove npm:pi-system-pin
@@ -170,7 +183,8 @@ pi-system-pin follows [Semantic Versioning](https://semver.org). The contract is
 
 - the custom entry types `system-pin.patch` and `system-pin.release`, their `data` and the key format,
   including that pins in an older transcript are still honoured;
-- that it never rewrites the leading system message or the transcript's own messages.
+- that it never rewrites the transcript, and that a request only ever loses held section changes: from the
+  patch messages and, after a compaction, from the leading system message pi folded them into.
 
 Removing or renaming any of these, or changing what it means, is a major version. The warning text is not part
 of the contract. Dropping support for an old pi line is a minor version. Changes are listed in

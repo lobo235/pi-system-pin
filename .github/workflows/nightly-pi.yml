@@ -1,9 +1,12 @@
 name: nightly-pi
 
 # Tests pi-system-pin against the newest pi on npm, including the two control tests that assert pi still has
-# the flaw it works around (pi#5581). A failing control test means pi has fixed it and this package should be
-# retired; the issue opened says so. A pass on a pi outside every verified release line opens a pull request
-# recording it in pi-compat.json. Neither merges or publishes anything. The job that installs and runs the new
+# the flaw it works around (pi#5581). scripts/nightly-action.ts turns the outcome into one action:
+# - retire: a control test failed, so pi has most likely fixed the flaw; open the retire issue, never record;
+# - record: a new release line passed AND both control tests still show the flaw; open a pull request
+#   recording it in pi-compat.json;
+# - fail: anything else failed; open a failure issue.
+# Nothing merges or publishes anything. The job that installs and runs the new
 # pi has a read-only token; only the reporting jobs can write, and they install nothing and run no package
 # scripts.
 
@@ -24,8 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.pi.outputs.version }}
-      status: ${{ steps.pi.outputs.status }}
-      control: ${{ steps.control.outcome }}
+      action: ${{ steps.decide.outputs.action }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,10 +55,11 @@ jobs:
         run: npm install --save-dev --save-exact "@earendil-works/pi-coding-agent@${PI_VERSION}"
 
       - name: Test against it (the version gate and the control tests skipped)
+        id: suite
         if: steps.pi.outputs.status != 'exact'
         run: |
           npm run typecheck
-          node --test --test-skip-pattern="the vendored pi is on a release line|^control:" "src/**/*.test.ts"
+          node --test --test-skip-pattern="the vendored pi is on a release line|^control:" "src/**/*.test.ts" "scripts/**/*.test.ts"
           npm run load-smoke
           npm run smoke
 
@@ -70,9 +73,24 @@ jobs:
           ran="$(grep -cE '^(not )?ok [0-9]+ - control:' "$RUNNER_TEMP/control.tap" || true)"
           if [ "$ran" != "2" ]; then echo "expected 2 control tests, ran $ran" >&2; exit 1; fi
 
+      - name: Decide what to report
+        id: decide
+        if: always()
+        env:
+          PI_VERSION: ${{ steps.pi.outputs.version }}
+          PI_STATUS: ${{ steps.pi.outputs.status }}
+          SUITE: ${{ steps.suite.outcome }}
+          CONTROL: ${{ steps.control.outcome }}
+        run: |
+          action="$(node scripts/nightly-action.ts "$PI_VERSION" "$PI_STATUS" "$SUITE" "$CONTROL")"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "pi ${PI_VERSION:-?}: suite ${SUITE:-?}, control ${CONTROL:-?} -> $action"
+
   record:
     needs: test
-    if: needs.test.outputs.status == 'unverified'
+    # Only when the suite passed AND both control tests still show the flaw (nightly-action.ts); never after a
+    # control failure, which reports the retire issue instead.
+    if: always() && needs.test.outputs.action == 'record'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -101,7 +119,7 @@ jobs:
 
   report-failure:
     needs: test
-    if: failure() && needs.test.outputs.version != ''
+    if: always() && (needs.test.outputs.action == 'retire' || needs.test.outputs.action == 'fail')
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -109,14 +127,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PI_VERSION: ${{ needs.test.outputs.version }}
-      CONTROL: ${{ needs.test.outputs.control }}
+      ACTION: ${{ needs.test.outputs.action }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Open an issue unless one is open
         run: |
-          if [ "$CONTROL" = "failure" ]; then
+          if [ "$ACTION" = "retire" ]; then
             title="Nightly: pi ${PI_VERSION} no longer has pi#5581, retire pi-system-pin"
-            body="A control test failed on pi ${PI_VERSION}: ${RUN_URL}. The control tests run WITHOUT pi-system-pin and assert that a run started by a custom message still loses the extensions' prompt sections. When one fails, pi has most likely fixed pi#5581 and this package should be retired (README, When to uninstall). Confirm in the log and on https://github.com/earendil-works/pi/issues/5581, then deprecate the npm package and point users to pi ${PI_VERSION}."
+            body="A control test failed on pi ${PI_VERSION}: ${RUN_URL}. The control tests run WITHOUT pi-system-pin and assert that a run started by a custom message still loses the extensions' prompt sections. When one fails, pi has most likely fixed pi#5581 and this package should be retired (README, When pi fixes pi#5581). Confirm in the log and on https://github.com/earendil-works/pi/issues/5581, then make the final release (pi-compat.json stopping at the last affected pi line) and npm deprecate the package with a message naming the fixed pi version."
           else
             title="Nightly: pi-system-pin fails on pi ${PI_VERSION}"
             body="The nightly run against pi ${PI_VERSION} failed: ${RUN_URL}. The control tests passed, so pi still has pi#5581 (if the pi binary smoke says its control run kept the section, read this as a retirement signal instead). Until it is fixed, add it to the README's Known issues."
