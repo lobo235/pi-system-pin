@@ -24,7 +24,7 @@ text is not part of it.
   packs the package with `npm pack`, installs it with `pi install` (so pi finds it through the package's
   `pi.extensions` manifest and the published file list), and drives the pi binary over RPC against a fake
   model, with folded and with mid-conversation system messages, plus the same runs without it as controls.
-- CI: tests on Linux, macOS and Windows, a secret scan and a package-contents check; a nightly run against the newest
+- CI: tests on Linux, macOS and Windows, a secret scan, a workflow security audit (zizmor), Dependabot updates and a package-contents check; a nightly run against the newest
   pi that opens a retire issue when a control check fails, a failure issue for anything else, and a pull request
   recording a new pi line only when everything passed and the control checks still show the flaw, with the
   write token given only to the steps that push or open issues; npm publishing by trusted publishing.
