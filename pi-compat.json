@@ -16,6 +16,14 @@
         "npm test on the vendored pi 1.0.4: typecheck, unit suite, the real-pi session tests, including pi's own compaction with the pinned patch kept and summarized (both control tests pass: without system-pin, pi still drops an added section and reverts a rewritten one; with it, every head is byte-identical), the load smoke",
         "npm run smoke: the pi 1.0.4 binary over RPC, fresh agent dir and HOME, fake model, with folded and with mid-conversation system messages; without system-pin the custom run's second turn lost the fixture's section; with system-pin packed by npm pack and installed by pi install, every leading system message stayed byte-identical, no request carried a system message dropping the section, and a system-pin.patch entry was written"
       ]
+    },
+    {
+      "pi": "1.1.0",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi (the version gate skipped): typecheck, unit suite, the real-pi session tests including both control tests, the load smoke",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
     }
   ]
 }
