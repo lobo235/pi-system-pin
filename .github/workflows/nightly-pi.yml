@@ -29,6 +29,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       version: ${{ steps.pi.outputs.version }}
       action: ${{ steps.decide.outputs.action }}
@@ -102,9 +103,10 @@ jobs:
     # setting "Allow GitHub Actions to create and approve pull requests" (CONTRIBUTING.md, Repository settings).
     if: always() && needs.test.outputs.action == 'record'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # push the nightly/pi-<version> branch
+      pull-requests: write # open the pull request recording it
     env:
       PI_VERSION: ${{ needs.test.outputs.version }}
       BRANCH: nightly/pi-${{ needs.test.outputs.version }}
@@ -146,8 +148,9 @@ jobs:
     needs: test
     if: always() && (needs.test.outputs.action == 'retire' || needs.test.outputs.action == 'fail')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      issues: write
+      issues: write # open or update the nightly issue
     env:
       GH_REPO: ${{ github.repository }}
       PI_VERSION: ${{ needs.test.outputs.version }}

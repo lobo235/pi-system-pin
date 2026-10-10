@@ -36,8 +36,8 @@ To try a change in your own pi: `pi install /path/to/pi-system-pin`, then start 
   major version (README, *Versioning*).
 
 CI runs `npm test` on Linux, macOS and Windows with Node 24 and on Linux with Node 22.19.0 (the oldest
-supported); every leg must pass. It also runs a secret scan and a check of what the package
-would publish (`npm run check-pack`).
+supported); every leg must pass. It also runs a secret scan, a security audit of the workflows (zizmor) and a check of
+what the package would publish (`npm run check-pack`).
 
 ## Verifying a new pi version
 
@@ -82,6 +82,11 @@ The workflows and docs depend on these GitHub settings:
   nightly job opens the pull request that records a new pi line. Without it the job fails, naming the setting.
 - **An environment named `npm`** with required reviewers and a deployment tag rule `v*`: without reviewers a
   release publishes with no one's approval.
+- **Rulesets**: `main` requires a pull request with its review threads resolved and a linear history (squash or
+  rebase merges), and every CI check: the `test` legs, `workflows` and `secrets`. Maintainers can bypass it. `v*` tags are
+  protected.
+- **Security**: Dependabot alerts and security updates, plus the weekly version updates in `.github/dependabot.yml`; CodeQL
+  default setup; secret scanning with push protection.
 - GitHub pauses scheduled workflows in a repository with no activity for 60 days; re-enable `nightly-pi` from
   the Actions tab when that happens.
 
