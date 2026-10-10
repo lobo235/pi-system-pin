@@ -10,11 +10,12 @@ import * as http from "node:http";
 import * as path from "node:path";
 import * as readline from "node:readline";
 
+import { PATCH_ENTRY } from "../src/entries.ts";
+
 export const repo = path.join(import.meta.dirname, "..");
 const PROVIDER = "example-provider";
 const MODEL = "example-model";
 const STEP_TIMEOUT_MS = 60_000;
-const PATCH_ENTRY = "system-pin.patch";
 
 export type Reply = { text: string } | { toolCall: string };
 

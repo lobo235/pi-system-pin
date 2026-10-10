@@ -53,9 +53,13 @@ export function pinnedRequest(messages: AgentMessage[], pins: Pins): AgentMessag
  * with, so the change was real (an extension stopped adding the section, a reload changed a context file).
  */
 export function releasableChanges(messages: AgentMessage[], pins: Pins): string[] {
-  return heldChanges(messages, pins).flatMap(({ index, key, sections }) =>
-    sections
-      .filter((name) => !messages.slice(index + 1).some((later) => isSystemPatch(later) && Object.hasOwn(later.sections ?? {}, name)))
-      .map((name) => `${key}#${name}`),
-  );
+  return heldChanges(messages, pins).flatMap(({ index, key, sections }) => {
+    const later = messages.slice(index + 1);
+    return sections.filter((name) => !touchesSection(later, name)).map((name) => `${key}#${name}`);
+  });
+}
+
+/** Whether any system message among `messages` sets section `name`. */
+export function touchesSection(messages: readonly AgentMessage[], name: string): boolean {
+  return messages.some((message) => isSystemPatch(message) && Object.hasOwn(message.sections ?? {}, name));
 }

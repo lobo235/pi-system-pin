@@ -10,7 +10,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { isSystemPatch, type SystemPatch } from "./patch.ts";
-import { heldChanges, pinnedRequest, type Pins } from "./pin.ts";
+import { heldChanges, pinnedRequest, touchesSection, type Pins } from "./pin.ts";
 
 export interface FoldedHold {
   /** The request's leading system message with the folded held changes undone. */
@@ -72,6 +72,6 @@ export function foldedHold(branch: readonly unknown[], leading: AgentMessage, pi
  * user run's request, like releasableChanges: a section the run left alone is one it agrees with.
  */
 export function releasableFolded(messages: readonly AgentMessage[], held: FoldedHold["held"]): string[] {
-  const touched = (name: string) => messages.slice(1).some((message) => isSystemPatch(message) && Object.hasOwn(message.sections ?? {}, name));
-  return held.flatMap(({ key, sections }) => sections.filter((name) => !touched(name)).map((name) => `${key}#${name}`));
+  const later = messages.slice(1);
+  return held.flatMap(({ key, sections }) => sections.filter((name) => !touchesSection(later, name)).map((name) => `${key}#${name}`));
 }
