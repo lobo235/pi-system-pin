@@ -24,6 +24,62 @@
         "npm test on the vendored pi (the version gate skipped): typecheck, unit suite, the real-pi session tests including both control tests, the load smoke",
         "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
       ]
+    },
+    {
+      "pi": "0.87.1",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi: typecheck, unit suite, the real-pi session tests including both control tests (this pi has the flaw), the load smoke; only the version gate failed, its release line not yet listed",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "0.99.0",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi: typecheck, unit suite, the real-pi session tests including both control tests (this pi has the flaw), the load smoke; only the version gate failed, its release line not yet listed",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "0.99.1",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi: typecheck, unit suite, the real-pi session tests including both control tests (this pi has the flaw), the load smoke; only the version gate failed, its release line not yet listed",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "0.99.2",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi: typecheck, unit suite, the real-pi session tests including both control tests (this pi has the flaw), the load smoke; only the version gate failed, its release line not yet listed",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "1.0.1",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi (the version gate skipped): typecheck, unit suite, the real-pi session tests including both control tests, the load smoke",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "1.0.2",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi (the version gate skipped): typecheck, unit suite, the real-pi session tests including both control tests, the load smoke",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
+    },
+    {
+      "pi": "1.0.3",
+      "date": "2026-10-10",
+      "how": [
+        "npm test on the vendored pi (the version gate skipped): typecheck, unit suite, the real-pi session tests including both control tests, the load smoke",
+        "npm run smoke: the pi binary over RPC in a fresh agent dir against a fake model; the control run lost the section and the pinned run kept every head byte-identical"
+      ]
     }
   ]
 }

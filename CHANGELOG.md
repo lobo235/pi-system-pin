@@ -9,6 +9,16 @@ text is not part of it.
 
 ## [Unreleased]
 
+## [v1.0.1] - 2026-10-10
+
+### Changed
+
+- Supports pi 0.87.1 and newer (was 1.0.0): pi 0.87.1, 0.99.0, 0.99.1 and 0.99.2 are verified to have the flaw,
+  pass the full suite and are recorded in `pi-compat.json`, as are 1.0.1, 1.0.2 and 1.0.3. Tested with every pi
+  from 0.87.1 to 1.1.0. No code changes.
+- Published from the release workflow through npm trusted publishing, so this version carries a provenance
+  attestation linking it to its source commit. v1.0.0 was published by hand and has none.
+
 ## [v1.0.0] - 2026-10-10
 
 ### Added
