@@ -61,7 +61,7 @@ async function runScenario(root: string, scenario: Scenario): Promise<ScenarioRe
     await pi.promptAndSettle("/notice");
     await pi.promptAndSettle("again");
   } finally {
-    pi.stop();
+    await pi.stop();
     fake.server.close();
   }
   fs.writeFileSync(path.join(runDir, "requests.json"), JSON.stringify(fake.requests, null, 2)); // for --keep
@@ -122,7 +122,7 @@ async function main(): Promise<number> {
     return failures.length ? 1 : 0;
   } finally {
     if (keep) console.log(`kept ${root}`);
-    else fs.rmSync(root, { recursive: true, force: true });
+    else fs.rmSync(root, { recursive: true, force: true, maxRetries: 5 });
   }
 }
 
