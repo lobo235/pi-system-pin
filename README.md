@@ -1,7 +1,17 @@
 # pi-system-pin
 
-**A stopgap for [pi#5581](https://github.com/earendil-works/pi/issues/5581): it keeps a request's system block
-byte-identical when an extension's custom message starts a run. Uninstall it once pi fixes that issue.**
+![pi-system-pin: four requests in one session; without it the request head changes when a background task's run drops the extensions' sections and again when the next prompt restores them, each time re-reading the whole conversation; with it the head never changes and every request reuses the cached prefix](https://raw.githubusercontent.com/lobo235/pi-system-pin/main/.github/assets/infographic.png)
+
+**The same request head, whatever started the run.** A stopgap for
+[pi#5581](https://github.com/earendil-works/pi/issues/5581): it keeps a request's system block byte-identical
+when an extension's message starts a run, so a prefix cache does not read the whole conversation again. Uninstall
+it once pi fixes that issue.
+
+```bash
+pi install npm:pi-system-pin
+```
+
+## Why pi-system-pin
 
 In [pi](https://github.com/earendil-works/pi), extensions shape the system prompt in the `before_agent_start`
 event, and pi fires that event only for a user prompt. A run started by an extension's custom message
@@ -10,6 +20,10 @@ drop out for the rest of that run and come back with the next user prompt. On a 
 prompt as one leading message, each of those changes rewrites the head of the request, and a provider that
 caches prompt prefixes has to read the whole conversation again, twice per such run. pi-system-pin holds those
 fallback changes back, so the system block stays the same whatever started the run.
+
+Those runs are common in a busy session: a background task reporting back, a message from another agent, a
+scheduled wake-up, a review loop handing back its findings. On a self-hosted model with prefix caching, each
+one can cost two full re-reads of a conversation that may be tens of thousands of tokens long.
 
 It is a workaround, not a feature. When pi fixes the flaw upstream, remove it (see
 [When pi fixes pi#5581](#when-pi-fixes-pi5581)); its tests are built to tell you when that has happened.
