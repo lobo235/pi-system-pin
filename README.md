@@ -1,6 +1,6 @@
 # pi-system-pin
 
-![pi-system-pin: four requests in one session; without it the request head changes when a background task's run drops the extensions' sections and again when the next prompt restores them, each time re-reading the whole conversation; with it the head never changes and every request reuses the cached prefix](https://raw.githubusercontent.com/lobo235/pi-system-pin/main/.github/assets/infographic.png)
+![pi-system-pin: on pi 1.0 and 1.1 a run started by a background task, another agent, a scheduled wake-up or a review loop costs two full re-reads of the conversation; over four requests the request head changes twice without it and never with it](https://raw.githubusercontent.com/lobo235/pi-system-pin/main/.github/assets/infographic.png)
 
 **The same request head, whatever started the run.** A stopgap for
 [pi#5581](https://github.com/earendil-works/pi/issues/5581): it keeps a request's system block byte-identical
