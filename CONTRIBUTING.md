@@ -35,8 +35,8 @@ To try a change in your own pi: `pi install /path/to/pi-system-pin`, then start 
 - The entry types `system-pin.patch` and `system-pin.release` and their key format never change without a
   major version (README, *Versioning*).
 
-CI runs `npm test` on Linux and macOS with Node 24, on Linux with Node 22.19.0 (the oldest supported), and on
-Windows, which CI runs but is not required to pass. It also runs a secret scan and a check of what the package
+CI runs `npm test` on Linux, macOS and Windows with Node 24 and on Linux with Node 22.19.0 (the oldest
+supported); every leg must pass. It also runs a secret scan and a check of what the package
 would publish (`npm run check-pack`).
 
 ## Verifying a new pi version

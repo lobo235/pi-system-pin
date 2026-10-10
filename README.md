@@ -177,7 +177,6 @@ pi, including both control tests and the real-pi smoke, and opens an issue when 
 
 ## Known issues
 
-- **Windows is untested.** CI runs it but it is not required to pass.
 - **Another extension that also returns messages from `context_with_system`** runs before or after this one by
   load order. pi-system-pin only removes section changes from patches it pinned and leaves everything else as
   it receives it.
