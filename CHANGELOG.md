@@ -17,7 +17,7 @@ text is not part of it.
   (`system-pin.release`) and applies from then on.
 - Compaction: a held change pi folds into a compaction's leading system message is left out there too, rebuilt
   from the original system messages on the branch, and only when that replay gives pi's own folded head.
-- `pi-compat.json`, the verified pi versions (1.0.0 and 1.0.4), and a once-per-session warning on any other
+- `pi-compat.json`, the pi versions verified to still have the flaw, and a once-per-session warning on any other
   pi release line. The peer dependency is pi 1.0.0 or newer.
 - Tests through a real pi session, including two `control:` tests that fail once pi fixes pi#5581 (the
   signal to uninstall); a load smoke that loads `src/index.ts` through pi's jiti transform; and a smoke that
