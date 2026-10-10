@@ -9,6 +9,8 @@ text is not part of it.
 
 ## [Unreleased]
 
+## [v1.0.0] - 2026-10-10
+
 ### Added
 
 - A stopgap for pi#5581: system patches pi writes outside a user run are pinned (`system-pin.patch`) and

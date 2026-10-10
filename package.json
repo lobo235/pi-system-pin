@@ -1,6 +1,6 @@
 {
   "name": "pi-system-pin",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Stops pi re-reading your whole conversation when an extension's message starts a run: keeps the system block byte-identical so prefix caches hold. A stopgap for pi#5581; uninstall it once pi fixes that issue.",
   "type": "module",
   "license": "MIT",
