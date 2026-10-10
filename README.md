@@ -47,8 +47,8 @@ pi install npm:pi-system-pin
 Requirements:
 
 - pi 1.0.0 or newer, on a release line listed in [pi-compat.json](pi-compat.json). Another pi works too; it
-  warns once per session (see [pi versions](#pi-versions)). pi 1.0.0 and 1.0.4 are verified to have the flaw;
-  the releases between them are on the same line and are expected to.
+  warns once per session (see [pi versions](#pi-versions)). pi 1.0.0, 1.0.4 and 1.1.0 are verified to have the flaw;
+  the other 1.0 releases are on the same line as two of them and are expected to.
 - Node.js 22.19 or newer (pi's own requirement).
 
 It loads with the next pi session (or `/reload`) and has no configuration.
