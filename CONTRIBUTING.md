@@ -24,6 +24,8 @@ To try a change in your own pi: `pi install /path/to/pi-system-pin`, then start 
 
 ## Making the change
 
+- **The pull request title** becomes the squash commit's subject: `area: summary`, in the imperative or as a
+  statement of the new behaviour (`render: keep the Goal line once the Request moves`).
 - **Tests first**, one behaviour at a time, through the public functions or the extension's events.
   `src/test-support.ts` has an in-memory pi; use fakes, not mocks that assert call order.
 - **Never weaken the `control:` tests** in `src/session.test.ts` or the control runs in `scripts/pi-smoke.ts`.
@@ -57,12 +59,10 @@ smoke's control runs, `npm run smoke -- --control-only`) it opens an issue to re
 nothing. When everything passes on a new release line, the control checks included, it opens a pull request
 recording it. Any other failure opens a failure issue.
 
-## Releasing
-
-Maintainers only.
+## Releasing (maintainers)
 
 1. Set `version` in `package.json` (from `0.0.0` for the first release) and rename `## [Unreleased]` in
-   `CHANGELOG.md` to `## [vX.Y.Z] - YYYY-MM-DD`, with the `v`: the release workflow checks for that heading.
+   `CHANGELOG.md` to `## [vX.Y.Z] - YYYY-MM-DD`, with the `v`: the release workflow checks for that heading. Point `pi.image` in `package.json` at the new tag too: the release job checks it.
 2. **The first publish of the package is manual**: `npm publish --access public` from a clean checkout of the
    release commit, with 2FA. npm cannot configure a trusted publisher for a package that does not exist yet.
    Right after it, on npmjs.com: configure the trusted publisher (this repository, workflow `release.yml`,
@@ -73,7 +73,16 @@ Maintainers only.
    `package.json` and the changelog, runs `npm test` and `npm run check-pack`, and then publishes with provenance
    from the `npm` environment, after a maintainer approves it there.
 
-## Repository settings
+**Where a release shows up.** The [pi package gallery](https://pi.dev/packages) lists the package from npm within
+minutes of a publish: its card shows the `package.json` `description` and the `pi.image` card
+(`.github/assets/card.png`, pinned to the release tag), and its page renders the README inside the published
+tarball. Editing either on GitHub changes nothing there until the next release, and a README link to a file the
+package does not ship must be an absolute GitHub URL. After `publish`, `release.yml` creates the GitHub Release
+for the tag from its `CHANGELOG.md` section; for the manual first publish, run
+`gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <that section>` instead. The repository's
+social preview (Settings > General) is `.github/assets/social-preview.png`, uploaded by hand.
+
+## Repository settings (maintainers)
 
 The workflows and docs depend on these GitHub settings:
 

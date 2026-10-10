@@ -27,4 +27,4 @@ text is not part of it.
 - CI: tests on Linux, macOS and Windows, a secret scan, a workflow security audit (zizmor), Dependabot updates and a package-contents check; a nightly run against the newest
   pi that opens a retire issue when a control check fails, a failure issue for anything else, and a pull request
   recording a new pi line only when everything passed and the control checks still show the flaw, with the
-  write token given only to the steps that push or open issues; npm publishing by trusted publishing.
+  write token given only to the steps that push or open issues; npm publishing by trusted publishing, then a GitHub Release carrying the tag's changelog notes.

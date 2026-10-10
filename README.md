@@ -126,7 +126,7 @@ As of 2026-10-07, pi#5581 is open, labelled `bug` and `inprogress`. Once pi runs
 equivalent preparation step) for runs started by custom messages, the fallback patches stop and pi-system-pin
 has nothing left to do.
 
-**How the fix is detected.** Two tests, named `control:` in [src/session.test.ts](src/session.test.ts), run a
+**How the fix is detected.** Two tests, named `control:` in [src/session.test.ts](https://github.com/lobo235/pi-system-pin/blob/main/src/session.test.ts), run a
 real pi session **without** pi-system-pin and assert that pi still has the flaw: one checks that a custom run
 drops a section an extension added, the other that it reverts a built-in section an extension rewrote. The
 real-pi smoke (`npm run smoke`) makes the same check with the pi binary, with folded and with mid-conversation
@@ -196,7 +196,7 @@ of the contract. Dropping support for an old pi line is a minor version. Changes
 
 ## More
 
-[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+[CONTRIBUTING.md](https://github.com/lobo235/pi-system-pin/blob/main/CONTRIBUTING.md), [SECURITY.md](https://github.com/lobo235/pi-system-pin/blob/main/SECURITY.md), [CODE_OF_CONDUCT.md](https://github.com/lobo235/pi-system-pin/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
