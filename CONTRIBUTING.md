@@ -82,11 +82,12 @@ The workflows and docs depend on these GitHub settings:
   nightly job opens the pull request that records a new pi line. Without it the job fails, naming the setting.
 - **An environment named `npm`** with required reviewers and a deployment tag rule `v*`: without reviewers a
   release publishes with no one's approval.
-- **Rulesets**: `main` requires a pull request with its review threads resolved and a linear history (squash or
+- **Rulesets**: `main` requires a pull request approved by a code owner (`.github/CODEOWNERS`), with its review threads
+  resolved and a linear history (squash or
   rebase merges), and every CI check: the `test` legs, `workflows` and `secrets`. Maintainers can bypass it. `v*` tags are
   protected.
 - **Security**: Dependabot alerts and security updates, plus the weekly version updates in `.github/dependabot.yml`; CodeQL
-  default setup; secret scanning with push protection.
+  default setup, whose high and critical alerts block a merge; secret scanning with push protection.
 - GitHub pauses scheduled workflows in a repository with no activity for 60 days; re-enable `nightly-pi` from
   the Actions tab when that happens.
 
