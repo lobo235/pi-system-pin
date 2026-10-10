@@ -5,6 +5,7 @@
  * pi inherits only an allowlisted environment (childEnv), so no key set in the caller's shell reaches it.
  */
 import { execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
 import * as fs from "node:fs";
 import * as http from "node:http";
 import * as path from "node:path";
@@ -121,11 +122,15 @@ export function childEnv(root: string, agentDir: string, parent: NodeJS.ProcessE
   return { ...inherited, HOME: root, USERPROFILE: root, PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: "1" };
 }
 
-/** npm, run the way that works on every OS: through the npm that started this script when there is one. */
+/**
+ * npm without a shell, which would re-parse arguments such as a temporary path: the npm-cli.js that started this
+ * script (`npm_execpath`), else on Windows the one installed next to node, else `npm` on the search path.
+ */
 function runNpm(args: string[], cwd: string): string {
-  const npmCli = process.env.npm_execpath;
-  if (npmCli && npmCli.endsWith(".js")) return execFileSync(process.execPath, [npmCli, ...args], { cwd, encoding: "utf8" });
-  return execFileSync("npm", args, { cwd, encoding: "utf8", shell: process.platform === "win32" });
+  const started = process.env.npm_execpath;
+  const besideNode = path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+  const cli = started && /npm-cli\.c?js$/.test(started) ? started : process.platform === "win32" && fs.existsSync(besideNode) ? besideNode : undefined;
+  return cli ? execFileSync(process.execPath, [cli, ...args], { cwd, encoding: "utf8" }) : execFileSync("npm", args, { cwd, encoding: "utf8" });
 }
 
 /**
@@ -193,10 +198,14 @@ export class RpcPi {
     });
   }
 
-  stop(): void {
+  /** Stops pi and resolves once it has exited: Windows refuses to delete a directory a running process works in. */
+  async stop(): Promise<void> {
     this.child.removeAllListeners("exit");
     this.child.stdin!.end();
+    if (this.child.exitCode !== null || this.child.signalCode !== null) return;
+    const gone = once(this.child, "exit");
     this.child.kill();
+    await gone;
   }
 }
 
