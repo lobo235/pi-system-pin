@@ -1,7 +1,7 @@
 {
   "name": "pi-system-pin",
   "version": "0.0.0",
-  "description": "Stopgap for pi#5581: keeps a request's system block byte-identical when an extension's custom message starts a run, so a prefix-caching provider does not re-read the conversation. Uninstall once pi fixes the issue.",
+  "description": "Stops pi re-reading your whole conversation when an extension's message starts a run: keeps the system block byte-identical so prefix caches hold. A stopgap for pi#5581; uninstall it once pi fixes that issue.",
   "type": "module",
   "license": "MIT",
   "author": "Justin Barlow",
@@ -16,14 +16,21 @@
   "keywords": [
     "pi-package",
     "pi",
+    "pi-extension",
+    "pi-coding-agent",
+    "coding-agent",
+    "llm",
+    "ai-agents",
     "prompt-cache",
+    "prompt-caching",
     "system-prompt",
-    "coding-agent"
+    "kv-cache"
   ],
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/lobo235/pi-system-pin/v1.0.0/.github/assets/card.png"
   },
   "files": [
     "src/**/*.ts",
