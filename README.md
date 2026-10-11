@@ -60,9 +60,9 @@ pi install npm:pi-system-pin
 
 Requirements:
 
-- pi 1.0.0 or newer, on a release line listed in [pi-compat.json](pi-compat.json). Another pi works too; it
-  warns once per session (see [pi versions](#pi-versions)). pi 1.0.0, 1.0.4 and 1.1.0 are verified to have the flaw;
-  the other 1.0 releases are on the same line as two of them and are expected to.
+- pi 0.87.1 or newer, on a release line listed in [pi-compat.json](pi-compat.json). Another pi works too; it
+  warns once per session (see [pi versions](#pi-versions)). Every pi from 0.87.1 to 1.1.0 (0.87.1, 0.99.0, 0.99.1,
+  0.99.2, 1.0.0, 1.0.1, 1.0.2, 1.0.3, 1.0.4 and 1.1.0) is verified to have the flaw.
 - Node.js 22.19 or newer (pi's own requirement).
 
 It loads with the next pi session (or `/reload`) and has no configuration.
@@ -73,7 +73,7 @@ Here is a session where one extension adds a section to the system prompt on eve
 starts a run with a custom message when a background task finishes. The model answers that notice with a
 tool call, so the custom run has two turns.
 
-| Request | Started by | System block sent (pi 1.0.0 to 1.0.4) | With pi-system-pin |
+| Request | Started by | System block sent (pi 0.87.1 to 1.0.4) | With pi-system-pin |
 |---|---|---|---|
 | 1 | user prompt | base prompt + section | base prompt + section |
 | 2 | custom message, first turn | base prompt + section | base prompt + section |
@@ -122,7 +122,7 @@ Both entry types live on the transcript, so a reopened session sends the same re
   SHA-256 hash of each system patch's sections, plus one pass over the branch's entries once a compaction is on
   the branch. **Per pin or release**, one small custom entry on the transcript. No network calls and no model
   calls; the only file it reads is its own `pi-compat.json`, once at load.
-- **A change a custom-message run makes on purpose waits** for the next user run. On pi 1.0.0 to 1.0.4 no
+- **A change a custom-message run makes on purpose waits** for the next user run. On pi 0.87.1 to 1.0.4 no
   extension can make one, since custom runs never reach `before_agent_start`.
 - **The first run of a session**, when a custom message starts it before any user prompt, is sent by pi 1.0.4
   with no system prompt at all. pi-system-pin keeps that run's head as it started; the head changes once, at
@@ -188,6 +188,9 @@ pi-system-pin relies on parts of pi that are not a stable API, so each pi releas
 and listed in [pi-compat.json](pi-compat.json). On a listed line (same major and minor version) it runs
 silently. On any other pi it warns once per session and keeps running. A nightly job tests against the newest
 pi, including both control tests and the real-pi smoke, and opens an issue when anything fails.
+
+Tested with pi 0.87.1, 0.99.0, 0.99.1, 0.99.2, 1.0.0, 1.0.1, 1.0.2, 1.0.3, 1.0.4 and 1.1.0: the full suite,
+both control tests and the real-pi smoke on each.
 
 ## Known issues
 
