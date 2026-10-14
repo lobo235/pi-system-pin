@@ -145,7 +145,7 @@ test("session_start ends a user run left open by the previous session", () => {
 });
 
 test("pi version: a verified version or line is silent; any other warns once per session and still runs (table)", () => {
-  for (const [version, warnings] of [["1.0.4", 0], ["1.0.9", 0], ["1.1.0", 1], ["2.0.0", 1]] as const) {
+  for (const [version, warnings] of [["1.0.4", 0], ["1.0.9", 0], ["1.1.0", 1], ["0.98.0", 1]] as const) {
     const pi = started(version);
     pi.emit("session_start", { reason: "reload" });
     assert.equal(pi.notices.length, warnings * 2, `${version}: one warning per session start`);
@@ -157,12 +157,25 @@ test("pi version: a verified version or line is silent; any other warns once per
 });
 
 test("pi version: a notice the UI cannot show never breaks the session", () => {
-  const pi = fakePi(createSystemPin({ piVersion: "9.9.9", compat: VERIFIED }));
+  const pi = fakePi(createSystemPin({ piVersion: "0.98.0", compat: VERIFIED }));
   pi.breakNotify();
   assert.doesNotThrow(() => pi.emit("session_start", { reason: "startup" }));
   pi.end(custom(2));
   pi.end(patch(3, { shell: null }));
   assert.equal(pinned(pi).length, 1);
+});
+
+test("pi 1.2.0 and newer fix pi#5581: one notice per session says to remove the package, and nothing is pinned or held (table)", () => {
+  for (const version of ["1.2.0", "1.2.3", "1.10.0", "2.0.0"]) {
+    const pi = started(version);
+    pi.emit("session_start", { reason: "reload" });
+    assert.equal(pi.notices.length, 2, `${version}: one notice per session start`);
+    for (const notice of pi.notices) assert.match(notice.text, /pi remove npm:pi-system-pin/, version);
+    pi.end(custom(2));
+    pi.end(patch(3, { shell: null }));
+    assert.equal(pinned(pi).length, 0, `${version}: pins nothing`);
+    assert.equal(pi.request([head, user(4), patch(5, { shell: null })]), undefined, `${version}: leaves the request to pi`);
+  }
 });
 
 /** A branch where a custom run's pinned deletion was folded into a compaction's head (pi does this at a compaction). */

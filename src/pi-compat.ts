@@ -71,3 +71,25 @@ export function unverifiedPiVersionNotice(version: string, compat: PiCompat): st
     `(verified: ${listed}). It still runs. If pi has fixed pi#5581 (https://github.com/earendil-works/pi/issues/5581), uninstall pi-system-pin.`
   );
 }
+
+/** The first pi that runs `before_agent_start` for a custom-message run (pi#5581), so it has no fallback patch. */
+export const PI_5581_FIXED_IN = "1.2.0";
+
+const numbersOf = (version: string): number[] | undefined => /^(\d+)\.(\d+)\.(\d+)/.exec(version)?.slice(1, 4).map(Number);
+
+/** Whether `version` is `PI_5581_FIXED_IN` or newer; an unreadable version is not. */
+export function fixesPi5581(version: string): boolean {
+  const running = numbersOf(version);
+  const fixed = numbersOf(PI_5581_FIXED_IN) as number[];
+  if (running === undefined) return false;
+  for (const [index, part] of running.entries()) if (part !== fixed[index]) return part > fixed[index];
+  return true;
+}
+
+/** The once-per-session notice on a pi that fixed pi#5581: this package has nothing left to do there. */
+export function fixedPiNotice(version: string): string {
+  return (
+    `pi-system-pin: pi ${version} fixes pi#5581 (https://github.com/earendil-works/pi/issues/5581), so pi-system-pin ` +
+    `has nothing to do and stays out of the way. Remove it: pi remove npm:pi-system-pin`
+  );
+}

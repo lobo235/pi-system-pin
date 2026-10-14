@@ -9,6 +9,13 @@ text is not part of it.
 
 ## [Unreleased]
 
+### Changed
+
+- pi 1.2.0 fixes pi#5581, so pi-system-pin is retired and this is its final release. On pi 1.2.0 or newer it
+  registers no handler, leaving every request exactly as pi sends it, and shows one notice per session saying
+  it can be removed (`pi remove npm:pi-system-pin`). On pi 1.1 and earlier nothing changes.
+- The nightly job no longer runs on a schedule; it can still be started by hand.
+
 ## [v1.0.1] - 2026-10-10
 
 ### Changed

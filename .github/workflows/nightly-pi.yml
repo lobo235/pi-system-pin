@@ -14,9 +14,8 @@ name: nightly-pi
 # (scripts/record-pi-version.ts, from this repository) and commits, with no token in reach; its last step,
 # which runs only git and gh, pushes and opens the pull request. scripts/nightly-workflow.test.ts checks this.
 
+# Retired with the package: pi 1.2.0 fixed pi#5581, so there is no newer pi left to check. Run it by hand if needed.
 on:
-  schedule:
-    - cron: "41 9 * * *"
   workflow_dispatch:
 
 permissions:
