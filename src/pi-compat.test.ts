@@ -11,7 +11,7 @@ import { test } from "node:test";
 
 import * as pi from "@earendil-works/pi-coding-agent";
 
-import { PI_COMPAT_PATH, piVersionStatus, readPiCompat, unverifiedPiVersionNotice, withVerification, type PiVerification } from "./pi-compat.ts";
+import { PI_COMPAT_PATH, fixesPi5581, piVersionStatus, readPiCompat, unverifiedPiVersionNotice, withVerification, type PiVerification } from "./pi-compat.ts";
 
 const PKG = new URL("../node_modules/@earendil-works/pi-coding-agent/", import.meta.url);
 const vendoredVersion = (JSON.parse(readFileSync(new URL("package.json", PKG), "utf8")) as { version: string }).version;
@@ -98,4 +98,12 @@ test("withVerification: refuses a listed version, a malformed version or date, a
     ["one step", { pi: "1.1.0", date: "2026-11-02", how: ["a"] }, /how/],
   ];
   for (const [name, entry, message] of cases) assert.throws(() => withVerification(compat, entry), message, name);
+});
+
+test("fixesPi5581: 1.2.0 and every later release, never an earlier one or a 1.2.0 prerelease (table)", () => {
+  const cases: Array<[string, boolean]> = [
+    ["1.1.0", false], ["1.1.9", false], ["0.99.2", false], ["1.2.0-rc.1", false], ["not a version", false],
+    ["1.2.0", true], ["1.2.1", true], ["1.3.0-rc.1", true], ["1.10.0", true], ["2.0.0", true],
+  ];
+  for (const [version, fixed] of cases) assert.equal(fixesPi5581(version), fixed, version);
 });

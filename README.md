@@ -4,8 +4,11 @@
 
 **The same request head, whatever started the run.** A stopgap for
 [pi#5581](https://github.com/earendil-works/pi/issues/5581): it keeps a request's system block byte-identical
-when an extension's message starts a run, so a prefix cache does not read the whole conversation again. Uninstall
-it once pi fixes that issue.
+when an extension's message starts a run, so a prefix cache does not read the whole conversation again.
+
+> **Retired.** pi 1.2.0 fixes pi#5581, so this package is only useful on pi 1.1 and earlier. On pi 1.2.0 or
+> newer it registers nothing and shows one notice per session; remove it with `pi remove npm:pi-system-pin`.
+> See [When pi fixes pi#5581](#when-pi-fixes-pi5581).
 
 ```bash
 pi install npm:pi-system-pin
@@ -136,31 +139,29 @@ Both entry types live on the transcript, so a reopened session sends the same re
 
 ## When pi fixes pi#5581
 
-As of 2026-10-07, pi#5581 is open, labelled `bug` and `inprogress`. Once pi runs `before_agent_start` (or an
-equivalent preparation step) for runs started by custom messages, the fallback patches stop and pi-system-pin
-has nothing left to do.
+pi 1.2.0 (released 2026-10-12) fixes pi#5581: it runs `before_agent_start` for runs started by custom messages
+too, so the fallback patches stop and pi-system-pin has nothing left to do.
 
-**How the fix is detected.** Two tests, named `control:` in [src/session.test.ts](https://github.com/lobo235/pi-system-pin/blob/main/src/session.test.ts), run a
+**How the fix was detected.** Two tests, named `control:` in [src/session.test.ts](https://github.com/lobo235/pi-system-pin/blob/main/src/session.test.ts), run a
 real pi session **without** pi-system-pin and assert that pi still has the flaw: one checks that a custom run
 drops a section an extension added, the other that it reverts a built-in section an extension rewrote. The
 real-pi smoke (`npm run smoke`) makes the same check with the pi binary, with folded and with mid-conversation
-system messages. A nightly job runs them against the newest pi. When any of these control checks fails, it
-opens an issue saying pi has fixed the flaw, and it never records that pi as verified. GitHub pauses scheduled
-workflows in a repository with no activity for 60 days; check pi#5581 yourself if the last nightly run is old.
+system messages. The nightly job ran them against the newest pi, and on pi 1.2.0 every control check failed.
 
-**What happens to this package then.** A final release whose `pi-compat.json` stops at the last pi line that
-has the flaw, then `npm deprecate` with a message naming the pi version that fixed it. There is no date; it
-follows pi.
+**What happened to this package.** v1.0.2 is the final release. Its `pi-compat.json` stops at the last pi line
+that has the flaw (1.1). On pi 1.2.0 or newer it steps aside: it registers no handler, so every request is
+exactly what pi sends, and it shows one notice per session saying it can be removed. The package is deprecated
+on npm, and the nightly job no longer runs on a schedule.
 
-**What you do.** Once you run that pi version or newer, uninstall it:
+**What you do.** Once you run pi 1.2.0 or newer, uninstall it:
 
 ```bash
 pi remove npm:pi-system-pin
 ```
 
-Leaving it installed on a fixed pi is not useful and has one cost: it does not treat a custom-message run as a
-user run, so a section change an extension makes on purpose during such a run is held until the next user
-run. After you remove it, a session that has pinned patches may rebuild its head once, on its next request,
+From v1.0.2, leaving it installed on a fixed pi costs nothing but that notice (v1.0.1 and earlier did not step
+aside, and held a section change an extension made on purpose during a custom-message run until the next user
+run). After you remove it, a session that has pinned patches may rebuild its head once, on its next request,
 from the transcript's own system messages. Its `system-pin.*` entries stay in the transcript and pi ignores them.
 
 ## Transcript entries

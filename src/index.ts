@@ -20,7 +20,7 @@ import { VERSION, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { PATCH_ENTRY, readPins, RELEASE_ENTRY, type MutablePins } from "./entries.ts";
 import { changedSections, isSystemPatch, patchKey } from "./patch.ts";
-import { readPiCompat, unverifiedPiVersionNotice, type PiCompat } from "./pi-compat.ts";
+import { fixedPiNotice, fixesPi5581, readPiCompat, unverifiedPiVersionNotice, type PiCompat } from "./pi-compat.ts";
 import { pinRequest } from "./request.ts";
 
 export interface SystemPinOptions {
@@ -32,6 +32,7 @@ export interface SystemPinOptions {
 
 /** The extension, with the pi version and the record it checks against passed in. */
 export function createSystemPin(options: SystemPinOptions): (pi: ExtensionAPI) => void {
+  if (fixesPi5581(options.piVersion)) return stepAside(fixedPiNotice(options.piVersion));
   const versionNotice = unverifiedPiVersionNotice(options.piVersion, options.compat);
   return (pi) => {
     let pins: MutablePins = { patches: new Set(), released: new Set() };
@@ -83,6 +84,19 @@ export function createSystemPin(options: SystemPinOptions): (pi: ExtensionAPI) =
         pi.appendEntry(RELEASE_ENTRY, { key });
       }
       return outcome.messages ? { messages: outcome.messages } : undefined;
+    });
+  };
+}
+
+/** On a pi with no fallback patch: no handlers, so every request is pi's own; one notice per session says so. */
+function stepAside(notice: string): (pi: ExtensionAPI) => void {
+  return (pi) => {
+    pi.on("session_start", (_event, ctx) => {
+      try {
+        ctx.ui.notify(notice, "info");
+      } catch {
+        // A notice the UI cannot show must never affect the session.
+      }
     });
   };
 }
