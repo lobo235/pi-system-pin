@@ -9,6 +9,8 @@ text is not part of it.
 
 ## [Unreleased]
 
+## [v1.0.2] - 2026-10-13
+
 ### Changed
 
 - pi 1.2.0 fixes pi#5581, so pi-system-pin is retired and this is its final release. On pi 1.2.0 or newer it
