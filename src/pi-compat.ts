@@ -77,13 +77,13 @@ export const PI_5581_FIXED_IN = "1.2.0";
 
 const numbersOf = (version: string): number[] | undefined => /^(\d+)\.(\d+)\.(\d+)/.exec(version)?.slice(1, 4).map(Number);
 
-/** Whether `version` is `PI_5581_FIXED_IN` or newer; an unreadable version is not. */
+/** Whether `version` is `PI_5581_FIXED_IN` or newer; an unreadable version is not, nor is its own prerelease. */
 export function fixesPi5581(version: string): boolean {
   const running = numbersOf(version);
   const fixed = numbersOf(PI_5581_FIXED_IN) as number[];
   if (running === undefined) return false;
   for (const [index, part] of running.entries()) if (part !== fixed[index]) return part > fixed[index];
-  return true;
+  return !/^\d+\.\d+\.\d+-/.test(version);
 }
 
 /** The once-per-session notice on a pi that fixed pi#5581: this package has nothing left to do there. */
